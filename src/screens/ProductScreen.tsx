@@ -1,31 +1,34 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import {
   View, Text, FlatList, StyleSheet, TouchableOpacity,
-  Modal, TextInput, Alert, ActivityIndicator, SafeAreaView, KeyboardAvoidingView, Platform
+  Modal, TextInput, Alert, KeyboardAvoidingView, Platform
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Picker } from '@react-native-picker/picker';
 
 import {
   getProducts, getCategories, addProduct, deleteProduct, updateProduct,
-  addCategory, updateCategory, deleteCategory // Import thêm các hàm mới
+  addCategory, updateCategory, deleteCategory
 } from '../services/productService';
 import { supabase } from '../lib/supabase';
 
 export default function ProductScreen() {
   const [products, setProducts] = useState<any[]>([]);
   const [categories, setCategories] = useState<any[]>([]);
-  const [loading, setLoading] = useState(false);
 
-  // --- STATE CHO SẢN PHẨM ---
+  // --- STATE TÌM KIẾM & LỌC (MỚI) ---
+  const [searchText, setSearchText] = useState('');
+  const [filterCatId, setFilterCatId] = useState<number | null>(null); // null = Hiện tất cả
+
+  // --- STATE MODAL SẢN PHẨM ---
   const [prodModalVisible, setProdModalVisible] = useState(false);
   const [prodName, setProdName] = useState('');
   const [prodPrice, setProdPrice] = useState('');
   const [prodUnit, setProdUnit] = useState('cái');
-  const [selectedCat, setSelectedCat] = useState<number | null>(null);
+  const [selectedCat, setSelectedCat] = useState<number | null>(null); // Dùng cho Modal
   const [editingProdId, setEditingProdId] = useState<number | null>(null);
 
-  // --- STATE CHO DANH MỤC (MỚI) ---
+  // --- STATE MODAL DANH MỤC ---
   const [catModalVisible, setCatModalVisible] = useState(false);
   const [catName, setCatName] = useState('');
   const [editingCatId, setEditingCatId] = useState<number | null>(null);
@@ -33,14 +36,14 @@ export default function ProductScreen() {
   useEffect(() => {
     fetchData();
 
-    // Realtime: Lắng nghe cả Products và Categories
+    // Realtime logic
     const productSub = supabase
-      .channel('prods_realtime')
+      .channel('prods_realtime_v2')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'products' }, fetchData)
       .subscribe();
 
     const catSub = supabase
-      .channel('cats_realtime')
+      .channel('cats_realtime_v2')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'categories' }, fetchData)
       .subscribe();
 
@@ -55,18 +58,31 @@ export default function ProductScreen() {
       const [prods, cats] = await Promise.all([getProducts(), getCategories()]);
       setProducts(prods);
       setCategories(cats);
-      // Mặc định chọn danh mục đầu tiên cho form thêm sản phẩm
-      if (!selectedCat && cats.length > 0) setSelectedCat(cats[0].id);
     } catch (error) {
       console.log('Lỗi tải dữ liệu');
     }
   };
 
-  // --- XỬ LÝ SẢN PHẨM (Code cũ) ---
+  // --- LOGIC LỌC DANH SÁCH (MỚI - QUAN TRỌNG) ---
+  const filteredList = useMemo(() => {
+    return products.filter(p => {
+      // 1. Lọc theo tên (không phân biệt hoa thường)
+      const matchName = p.name.toLowerCase().includes(searchText.toLowerCase());
+      // 2. Lọc theo danh mục
+      const matchCat = filterCatId === null || p.category_id === filterCatId;
+
+      return matchName && matchCat;
+    });
+  }, [products, searchText, filterCatId]);
+
+  // --- CÁC HÀM XỬ LÝ CŨ (GIỮ NGUYÊN) ---
   const openAddProduct = () => {
     setEditingProdId(null);
     setProdName(''); setProdPrice(''); setProdUnit('cái');
-    if (categories.length > 0) setSelectedCat(categories[0].id);
+    // Mặc định chọn danh mục đầu tiên hoặc danh mục đang lọc
+    if (filterCatId) setSelectedCat(filterCatId);
+    else if (categories.length > 0) setSelectedCat(categories[0].id);
+
     setProdModalVisible(true);
   };
 
@@ -105,55 +121,87 @@ export default function ProductScreen() {
     ]);
   };
 
-  // --- XỬ LÝ DANH MỤC (MỚI) ---
   const handleSaveCategory = async () => {
     if (!catName.trim()) return;
     try {
       if (editingCatId) await updateCategory(editingCatId, catName);
       else await addCategory(catName);
-
-      setCatName('');
-      setEditingCatId(null);
-      // Không cần alert, danh sách tự update nhờ Realtime
-    } catch (error) {
-      Alert.alert('Lỗi', 'Không lưu được danh mục');
-    }
+      setCatName(''); setEditingCatId(null);
+    } catch (error) { Alert.alert('Lỗi', 'Không lưu được danh mục'); }
   };
 
-  const handleEditCategory = (item: any) => {
-    setCatName(item.name);
-    setEditingCatId(item.id);
-  };
-
+  const handleEditCategory = (item: any) => { setCatName(item.name); setEditingCatId(item.id); };
   const handleDeleteCategory = (id: number) => {
-    Alert.alert('Xóa danh mục?', 'Các sản phẩm thuộc danh mục này sẽ không bị xóa (mất danh mục).', [
-      { text: 'Hủy', style: 'cancel' },
-      { text: 'Xóa', style: 'destructive', onPress: () => deleteCategory(id) }
+    Alert.alert('Xóa danh mục?', 'Sản phẩm sẽ mất danh mục này.', [
+      { text: 'Hủy', style: 'cancel' }, { text: 'Xóa', style: 'destructive', onPress: () => deleteCategory(id) }
     ]);
   };
 
-  // --- RENDER ---
+  // --- GIAO DIỆN ---
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>Kho Hàng ({products.length})</Text>
-        <View style={{ flexDirection: 'row' }}>
-          {/* Nút mở quản lý Danh mục */}
-          <TouchableOpacity onPress={() => setCatModalVisible(true)} style={styles.iconBtn}>
-            <Ionicons name="folder-open" size={24} color="#2F95DC" />
-          </TouchableOpacity>
-        </View>
+        <Text style={styles.headerTitle}>Kho Hàng ({filteredList.length})</Text>
+        <TouchableOpacity onPress={() => setCatModalVisible(true)} style={styles.iconBtn}>
+          <Ionicons name="folder-open" size={24} color="#2F95DC" />
+        </TouchableOpacity>
       </View>
 
+      {/* --- CÔNG CỤ TÌM KIẾM & LỌC (MỚI) --- */}
+      <View style={styles.filterContainer}>
+        {/* Ô tìm kiếm */}
+        <View style={styles.searchBox}>
+          <Ionicons name="search" size={20} color="gray" style={{ marginRight: 8 }} />
+          <TextInput
+            style={styles.searchInput}
+            placeholder="Tìm tên sản phẩm..."
+            value={searchText}
+            onChangeText={setSearchText}
+          />
+          {searchText !== '' && (
+            <TouchableOpacity onPress={() => setSearchText('')}>
+              <Ionicons name="close-circle" size={20} color="gray" />
+            </TouchableOpacity>
+          )}
+        </View>
+
+        {/* Thanh lọc danh mục ngang */}
+        <FlatList
+          horizontal
+          data={[{ id: null, name: 'Tất cả' }, ...categories]}
+          keyExtractor={item => item.id ? item.id.toString() : 'all'}
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={{ paddingVertical: 10 }}
+          renderItem={({ item }) => (
+            <TouchableOpacity
+              style={[
+                styles.filterChip,
+                filterCatId === item.id && styles.filterChipActive
+              ]}
+              onPress={() => setFilterCatId(item.id)}
+            >
+              <Text style={[
+                styles.filterText,
+                filterCatId === item.id && styles.filterTextActive
+              ]}>{item.name}</Text>
+            </TouchableOpacity>
+          )}
+        />
+      </View>
+
+      {/* --- DANH SÁCH SẢN PHẨM (Dùng filteredList) --- */}
       <FlatList
-        data={products}
+        data={filteredList}
         keyExtractor={(item) => item.id.toString()}
         contentContainerStyle={{ paddingBottom: 80 }}
+        ListEmptyComponent={
+          <Text style={{ textAlign: 'center', marginTop: 30, color: 'gray' }}>Không tìm thấy sản phẩm nào</Text>
+        }
         renderItem={({ item }) => (
           <TouchableOpacity style={styles.itemCard} onPress={() => openEditProduct(item)}>
             <View style={{ flex: 1 }}>
               <Text style={styles.itemName}>{item.name}</Text>
-              <Text style={styles.itemSub}>{item.categories?.name} • {item.unit}</Text>
+              <Text style={styles.itemSub}>{item.categories?.name || 'Chưa phân loại'} • {item.unit}</Text>
             </View>
             <View style={{ alignItems: 'flex-end' }}>
               <Text style={styles.itemPrice}>{item.price.toLocaleString('vi-VN')} đ</Text>
@@ -169,70 +217,43 @@ export default function ProductScreen() {
         <Ionicons name="add" size={32} color="white" />
       </TouchableOpacity>
 
-      {/* --- MODAL SẢN PHẨM --- */}
+      {/* --- MODAL SẢN PHẨM (Giữ nguyên) --- */}
       <Modal visible={prodModalVisible} animationType="slide" transparent={true}>
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <Text style={styles.modalTitle}>{editingProdId ? 'Sửa món' : 'Thêm món'}</Text>
-
             <TextInput style={styles.input} placeholder="Tên món" value={prodName} onChangeText={setProdName} />
             <View style={styles.row}>
               <TextInput style={[styles.input, { flex: 1, marginRight: 10 }]} placeholder="Giá bán" keyboardType="numeric" value={prodPrice} onChangeText={setProdPrice} />
               <TextInput style={[styles.input, { width: 100 }]} placeholder="Đơn vị" value={prodUnit} onChangeText={setProdUnit} />
             </View>
-
             <Text style={styles.label}>Chọn danh mục:</Text>
             <View style={styles.pickerContainer}>
               <Picker selectedValue={selectedCat} onValueChange={(v) => setSelectedCat(v)}>
                 {categories.map((c) => <Picker.Item key={c.id} label={c.name} value={c.id} />)}
               </Picker>
             </View>
-
             <View style={styles.modalButtons}>
-              <TouchableOpacity style={[styles.btn, styles.btnCancel]} onPress={() => setProdModalVisible(false)}>
-                <Text style={{ color: 'white' }}>Hủy</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={[styles.btn, styles.btnSave]} onPress={handleSaveProduct}>
-                <Text style={{ color: 'white', fontWeight: 'bold' }}>Lưu</Text>
-              </TouchableOpacity>
+              <TouchableOpacity style={[styles.btn, styles.btnCancel]} onPress={() => setProdModalVisible(false)}><Text style={{ color: 'white' }}>Hủy</Text></TouchableOpacity>
+              <TouchableOpacity style={[styles.btn, styles.btnSave]} onPress={handleSaveProduct}><Text style={{ color: 'white', fontWeight: 'bold' }}>Lưu</Text></TouchableOpacity>
             </View>
           </View>
         </KeyboardAvoidingView>
       </Modal>
 
-      {/* --- MODAL QUẢN LÝ DANH MỤC (MỚI) --- */}
+      {/* --- MODAL DANH MỤC (Giữ nguyên) --- */}
       <Modal visible={catModalVisible} animationType="fade" transparent={true}>
         <View style={styles.modalOverlay}>
           <View style={[styles.modalContent, { height: '70%' }]}>
             <View style={styles.modalHeaderRow}>
               <Text style={styles.modalTitle}>Quản lý Danh mục</Text>
-              <TouchableOpacity onPress={() => setCatModalVisible(false)}>
-                <Ionicons name="close" size={24} color="gray" />
-              </TouchableOpacity>
+              <TouchableOpacity onPress={() => setCatModalVisible(false)}><Ionicons name="close" size={24} color="gray" /></TouchableOpacity>
             </View>
-
-            {/* Form thêm/sửa nhanh */}
             <View style={styles.addCatRow}>
-              <TextInput
-                style={[styles.input, { marginBottom: 0, flex: 1 }]}
-                placeholder="Nhập tên danh mục..."
-                value={catName}
-                onChangeText={setCatName}
-              />
-              <TouchableOpacity style={styles.addCatBtn} onPress={handleSaveCategory}>
-                <Ionicons name={editingCatId ? "checkmark" : "add"} size={24} color="white" />
-              </TouchableOpacity>
-              {editingCatId && (
-                <TouchableOpacity
-                  style={[styles.addCatBtn, { backgroundColor: 'gray', marginLeft: 5 }]}
-                  onPress={() => { setEditingCatId(null); setCatName(''); }}
-                >
-                  <Ionicons name="close" size={24} color="white" />
-                </TouchableOpacity>
-              )}
+              <TextInput style={[styles.input, { marginBottom: 0, flex: 1 }]} placeholder="Nhập tên danh mục..." value={catName} onChangeText={setCatName} />
+              <TouchableOpacity style={styles.addCatBtn} onPress={handleSaveCategory}><Ionicons name={editingCatId ? "checkmark" : "add"} size={24} color="white" /></TouchableOpacity>
+              {editingCatId && (<TouchableOpacity style={[styles.addCatBtn, { backgroundColor: 'gray', marginLeft: 5 }]} onPress={() => { setEditingCatId(null); setCatName(''); }}><Ionicons name="close" size={24} color="white" /></TouchableOpacity>)}
             </View>
-
-            {/* Danh sách danh mục */}
             <FlatList
               data={categories}
               keyExtractor={item => item.id.toString()}
@@ -240,12 +261,8 @@ export default function ProductScreen() {
                 <View style={styles.catItemRow}>
                   <Text style={styles.catItemText}>{item.name}</Text>
                   <View style={{ flexDirection: 'row' }}>
-                    <TouchableOpacity onPress={() => handleEditCategory(item)} style={{ padding: 8 }}>
-                      <Ionicons name="pencil" size={20} color="#2F95DC" />
-                    </TouchableOpacity>
-                    <TouchableOpacity onPress={() => handleDeleteCategory(item.id)} style={{ padding: 8 }}>
-                      <Ionicons name="trash-outline" size={20} color="red" />
-                    </TouchableOpacity>
+                    <TouchableOpacity onPress={() => handleEditCategory(item)} style={{ padding: 8 }}><Ionicons name="pencil" size={20} color="#2F95DC" /></TouchableOpacity>
+                    <TouchableOpacity onPress={() => handleDeleteCategory(item.id)} style={{ padding: 8 }}><Ionicons name="trash-outline" size={20} color="red" /></TouchableOpacity>
                   </View>
                 </View>
               )}
@@ -263,13 +280,29 @@ const styles = StyleSheet.create({
   headerTitle: { fontSize: 20, fontWeight: 'bold' },
   iconBtn: { padding: 5, marginLeft: 15 },
 
+  // Styles mới cho Thanh tìm kiếm & Filter
+  filterContainer: { backgroundColor: 'white', paddingBottom: 10, marginBottom: 5 },
+  searchBox: {
+    flexDirection: 'row', alignItems: 'center', backgroundColor: '#F0F2F5',
+    margin: 15, marginBottom: 5, paddingHorizontal: 10, borderRadius: 8, height: 40
+  },
+  searchInput: { flex: 1, fontSize: 16, height: '100%' },
+
+  filterChip: {
+    paddingHorizontal: 15, paddingVertical: 8, borderRadius: 20,
+    backgroundColor: '#F0F2F5', marginRight: 10, marginLeft: 5, borderWidth: 1, borderColor: 'transparent'
+  },
+  filterChipActive: { backgroundColor: '#E1F5FE', borderColor: '#2F95DC' },
+  filterText: { color: 'gray', fontWeight: '500' },
+  filterTextActive: { color: '#2F95DC', fontWeight: 'bold' },
+
+  // ... (Các styles cũ giữ nguyên)
   itemCard: { flexDirection: 'row', justifyContent: 'space-between', backgroundColor: 'white', padding: 15, marginHorizontal: 15, marginTop: 10, borderRadius: 10, elevation: 2 },
   itemName: { fontSize: 16, fontWeight: '600', color: '#333' },
   itemSub: { color: 'gray', fontSize: 13, marginTop: 4 },
   itemPrice: { fontSize: 16, fontWeight: 'bold', color: '#2F95DC' },
   fab: { position: 'absolute', right: 20, bottom: 20, backgroundColor: '#2F95DC', width: 60, height: 60, borderRadius: 30, justifyContent: 'center', alignItems: 'center', elevation: 5 },
 
-  // Modal common
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', padding: 20 },
   modalContent: { backgroundColor: 'white', borderRadius: 15, padding: 20 },
   modalTitle: { fontSize: 18, fontWeight: 'bold', marginBottom: 15, textAlign: 'center' },
@@ -282,7 +315,6 @@ const styles = StyleSheet.create({
   btnCancel: { backgroundColor: '#FF6B6B', marginRight: 10 },
   btnSave: { backgroundColor: '#2F95DC', marginLeft: 10 },
 
-  // Styles riêng cho Modal Danh mục
   modalHeaderRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 15 },
   addCatRow: { flexDirection: 'row', marginBottom: 20 },
   addCatBtn: { backgroundColor: '#2F95DC', width: 48, height: 48, justifyContent: 'center', alignItems: 'center', borderRadius: 8, marginLeft: 10 },

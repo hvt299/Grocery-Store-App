@@ -1,13 +1,14 @@
 import React, { useState, useMemo } from 'react';
 import {
   View, Text, StyleSheet, FlatList, TouchableOpacity,
-  Modal, ActivityIndicator, RefreshControl
+  Modal, ActivityIndicator, RefreshControl,
+  Alert
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { getInvoices } from '../services/productService';
+import { deleteInvoice, getInvoices } from '../services/productService';
 import { formatCurrency, formatDate } from '../utils/format';
 
 export default function HistoryScreen() {
@@ -35,6 +36,35 @@ export default function HistoryScreen() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleDeleteInvoice = (id: number) => {
+    Alert.alert(
+      'Xóa hóa đơn này?',
+      'Hành động này không thể hoàn tác. Doanh thu sẽ bị trừ đi.',
+      [
+        { text: 'Hủy', style: 'cancel' },
+        {
+          text: 'Xóa vĩnh viễn',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              setLoading(true);
+              await deleteInvoice(id);
+
+              // Thành công:
+              setDetailVisible(false); // Tắt modal
+              fetchData(); // Tải lại danh sách
+              Alert.alert('Đã xóa', 'Hóa đơn đã được xóa khỏi hệ thống.');
+            } catch (error) {
+              Alert.alert('Lỗi', 'Không xóa được hóa đơn.');
+            } finally {
+              setLoading(false);
+            }
+          }
+        }
+      ]
+    );
   };
 
   // Tính tổng tiền CHỈ CỦA HÔM NAY
@@ -110,9 +140,21 @@ export default function HistoryScreen() {
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Chi tiết đơn hàng</Text>
-              <TouchableOpacity onPress={() => setDetailVisible(false)}>
-                <Ionicons name="close" size={24} color="#333" />
-              </TouchableOpacity>
+              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                {/* NÚT XÓA: Chỉ hiện khi có hóa đơn đang chọn */}
+                {selectedInvoice && (
+                  <TouchableOpacity
+                    onPress={() => handleDeleteInvoice(selectedInvoice.id)}
+                    style={{ marginRight: 20 }}
+                  >
+                    <Ionicons name="trash-outline" size={24} color="#FF6B6B" />
+                  </TouchableOpacity>
+                )}
+
+                <TouchableOpacity onPress={() => setDetailVisible(false)}>
+                  <Ionicons name="close" size={24} color="#333" />
+                </TouchableOpacity>
+              </View>
             </View>
 
             {selectedInvoice && (

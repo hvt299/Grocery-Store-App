@@ -124,7 +124,17 @@ export const createInvoice = async (cartItems: any[], totalAmount: number) => {
     return invoiceId;
 };
 
-// 1. Thêm danh mục
+// Xóa hóa đơn
+export const deleteInvoice = async (id: number) => {
+    const { error } = await supabase
+        .from('invoices')
+        .delete()
+        .eq('id', id);
+
+    if (error) throw error;
+};
+
+// Thêm danh mục
 export const addCategory = async (name: string) => {
     const { error } = await supabase
         .from('categories')
@@ -132,7 +142,7 @@ export const addCategory = async (name: string) => {
     if (error) throw error;
 };
 
-// 2. Sửa danh mục
+// Sửa danh mục
 export const updateCategory = async (id: number, name: string) => {
     const { error } = await supabase
         .from('categories')
@@ -142,7 +152,7 @@ export const updateCategory = async (id: number, name: string) => {
     if (error) throw error;
 };
 
-// 3. Xóa danh mục
+// Xóa danh mục
 export const deleteCategory = async (id: number) => {
     const { error } = await supabase
         .from('categories')

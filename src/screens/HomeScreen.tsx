@@ -5,7 +5,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
-import { getProducts, getCategories } from '../services/productService';
+import { getProducts, getCategories, createInvoice } from '../services/productService';
 import { formatCurrency } from '../utils/format';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { supabase } from '../lib/supabase';
@@ -114,11 +114,40 @@ export default function HomeScreen({ navigation }: any) {
 
   const handleCheckout = () => {
     if (cart.length === 0) return;
-    setCartVisible(false); // Đóng modal giỏ hàng lại
-    Alert.alert('Chốt đơn?', `Tổng tiền: ${formatCurrency(totalAmount)}`, [
-      { text: 'Hủy', style: 'cancel' },
-      { text: 'OK', onPress: () => console.log('Lưu hóa đơn...') }
-    ]);
+
+    // Tạm ẩn modal giỏ hàng đi để hiện Alert
+    setCartVisible(false);
+
+    Alert.alert(
+      'Xác nhận thanh toán',
+      `Tổng tiền: ${formatCurrency(totalAmount)}\nBạn có chắc muốn chốt đơn này?`,
+      [
+        {
+          text: 'Hủy',
+          style: 'cancel',
+          // Nếu hủy thì mở lại giỏ hàng cho người ta sửa tiếp
+          onPress: () => setCartVisible(true)
+        },
+        {
+          text: 'CHỐT ĐƠN',
+          onPress: async () => {
+            try {
+              await createInvoice(cart, totalAmount);
+
+              // Thành công:
+              setCart([]); // 1. Xóa sạch giỏ hàng
+              // 2. Thông báo
+              Alert.alert("Thành công", "Đã lưu hóa đơn vào lịch sử!");
+            } catch (error) {
+              console.log(error);
+              // Thất bại:
+              Alert.alert("Lỗi", "Không lưu được hóa đơn. Vui lòng thử lại!");
+              setCartVisible(true); // Mở lại giỏ hàng để khách thử lại
+            }
+          }
+        }
+      ]
+    );
   };
 
   // --- GIAO DIỆN ---

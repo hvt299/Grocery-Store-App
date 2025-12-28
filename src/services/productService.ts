@@ -67,6 +67,25 @@ export const deleteProduct = async (id: number) => {
     if (error) throw error;
 };
 
+// Lấy danh sách hóa đơn
+export const getInvoices = async () => {
+    const { data, error } = await supabase
+        .from('invoices')
+        .select(`
+      *,
+      invoice_items (
+        product_name,
+        quantity,
+        unit,
+        price
+      )
+    `) // Lấy hóa đơn KÈM THEO chi tiết các món
+        .order('created_at', { ascending: false }); // Đơn mới nhất lên đầu
+
+    if (error) throw error;
+    return data;
+};
+
 // Tạo hóa đơn
 export const createInvoice = async (cartItems: any[], totalAmount: number) => {
     // 1. Tạo hóa đơn trước
@@ -103,4 +122,31 @@ export const createInvoice = async (cartItems: any[], totalAmount: number) => {
     if (itemsError) throw itemsError;
 
     return invoiceId;
+};
+
+// 1. Thêm danh mục
+export const addCategory = async (name: string) => {
+    const { error } = await supabase
+        .from('categories')
+        .insert([{ name }] as any); // Dùng as any để tránh lỗi TypeScript
+    if (error) throw error;
+};
+
+// 2. Sửa danh mục
+export const updateCategory = async (id: number, name: string) => {
+    const { error } = await supabase
+        .from('categories')
+        // @ts-ignore
+        .update({ name } as any)
+        .eq('id', id);
+    if (error) throw error;
+};
+
+// 3. Xóa danh mục
+export const deleteCategory = async (id: number) => {
+    const { error } = await supabase
+        .from('categories')
+        .delete()
+        .eq('id', id);
+    if (error) throw error;
 };

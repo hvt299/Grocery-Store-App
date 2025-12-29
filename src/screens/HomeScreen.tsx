@@ -1,11 +1,11 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import {
   View, Text, StyleSheet, FlatList, TouchableOpacity,
-  Dimensions, Alert, Modal, TextInput, Platform, RefreshControl
+  Dimensions, Alert, Modal, TextInput, RefreshControl, Image
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import NetInfo from '@react-native-community/netinfo';
 import { StatusBar } from 'expo-status-bar';
 
@@ -32,6 +32,7 @@ const COLORS = {
 };
 
 export default function HomeScreen({ navigation }: any) {
+  const insets = useSafeAreaInsets();
   const [products, setProducts] = useState<any[]>([]);
   const [categories, setCategories] = useState<any[]>([]);
   const [selectedCat, setSelectedCat] = useState<number | null>(null);
@@ -152,7 +153,11 @@ export default function HomeScreen({ navigation }: any) {
       >
         {/* Placeholder Image đẹp hơn */}
         <View style={styles.cardImgPlaceholder}>
-          <Text style={styles.cardImgText}>{item.name.charAt(0).toUpperCase()}</Text>
+          {item.image_url ? (
+            <Image source={{ uri: item.image_url }} style={styles.productImage} resizeMode="cover" />
+          ) : (
+            <Text style={styles.cardImgText}>{item.name.charAt(0).toUpperCase()}</Text>
+          )}
         </View>
 
         <View style={styles.cardBody}>
@@ -178,9 +183,12 @@ export default function HomeScreen({ navigation }: any) {
   const renderCartItem = ({ item }: { item: any }) => (
     <View style={styles.cartItemRow}>
       <View style={styles.cartItemIcon}>
-        <Text style={{ fontSize: 18, fontWeight: 'bold', color: COLORS.primary }}>
-          {item.name.charAt(0).toUpperCase()}
-        </Text>
+        {/* Hiển thị ảnh nhỏ trong giỏ hàng */}
+        {item.image_url ? (
+          <Image source={{ uri: item.image_url }} style={{ width: '100%', height: '100%', borderRadius: 10 }} resizeMode="cover" />
+        ) : (
+          <Text style={{ fontSize: 18, fontWeight: 'bold', color: COLORS.primary }}>{item.name.charAt(0).toUpperCase()}</Text>
+        )}
       </View>
 
       <View style={{ flex: 1, paddingHorizontal: 12 }}>
@@ -205,7 +213,7 @@ export default function HomeScreen({ navigation }: any) {
   return (
     <SafeAreaView style={styles.container} edges={['top', 'left', 'right', 'bottom']}>
       <StatusBar style="dark" backgroundColor="white" />
-      
+
       {/* 1. HEADER HIỆN ĐẠI */}
       <View style={styles.header}>
         <View>
@@ -318,7 +326,7 @@ export default function HomeScreen({ navigation }: any) {
             />
 
             {/* Modal Footer (Thanh toán) */}
-            <View style={styles.modalFooter}>
+            <View style={[styles.modalFooter, { paddingBottom: Math.max(insets.bottom, 20) + 10 }]}>
               <View style={styles.billRow}>
                 <Text style={styles.billLabel}>Tạm tính:</Text>
                 <Text style={styles.billValue}>{formatCurrency(totalAmount)}</Text>
@@ -360,6 +368,7 @@ const styles = StyleSheet.create({
   // Product Card
   card: { width: ITEM_WIDTH, backgroundColor: COLORS.card, borderRadius: 16, marginBottom: SPACING, shadowColor: "#000", shadowOpacity: 0.05, shadowRadius: 10, shadowOffset: { width: 0, height: 5 }, elevation: 3, padding: 10 },
   cardImgPlaceholder: { width: '100%', aspectRatio: 1.2, backgroundColor: '#F0F4F8', borderRadius: 12, justifyContent: 'center', alignItems: 'center', marginBottom: 10 },
+  productImage: { width: '100%', height: '100%' },
   cardImgText: { fontSize: 24, fontWeight: 'bold', color: '#B0B8C1' },
   cardBody: { flex: 1 },
   cardName: { fontSize: 15, fontWeight: '600', color: COLORS.text, marginBottom: 8, height: 40 },
@@ -414,7 +423,7 @@ const styles = StyleSheet.create({
   qtyBtn: { width: 32, height: 32, justifyContent: 'center', alignItems: 'center' },
   qtyValue: { width: 20, textAlign: 'center', fontSize: 15, fontWeight: '600' },
 
-  modalFooter: { backgroundColor: '#FFF', padding: SPACING, paddingBottom: 30, borderTopWidth: 1, borderTopColor: '#EEE' },
+  modalFooter: { backgroundColor: '#FFF', padding: SPACING, borderTopWidth: 1, borderTopColor: '#EEE' },
   billRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 15 },
   billLabel: { fontSize: 16, color: COLORS.subText },
   billValue: { fontSize: 18, fontWeight: 'bold', color: COLORS.text },

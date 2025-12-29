@@ -120,8 +120,10 @@ export default function HistoryScreen() {
           text: 'Xóa vĩnh viễn', style: 'destructive',
           onPress: async () => {
             try {
+              setLoading(true);
               await deleteInvoice(id);
               setDetailVisible(false);
+              await fetchData();
             } catch (error) { Alert.alert('Lỗi', 'Không xóa được.'); }
             finally { setLoading(false); }
           }

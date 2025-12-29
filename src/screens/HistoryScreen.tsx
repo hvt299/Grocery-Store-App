@@ -5,6 +5,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { getInvoices, deleteInvoice } from '../services/productService';
 import { formatCurrency, formatDate } from '../utils/format';
@@ -137,7 +138,7 @@ export default function HistoryScreen() {
   );
 
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
       {/* Header Thống Kê Hôm Nay */}
       <View style={styles.header}>
         <Text style={styles.headerLabel}>Doanh thu hôm nay</Text>
@@ -202,7 +203,7 @@ export default function HistoryScreen() {
           </View>
         </View>
       </Modal>
-    </View>
+    </SafeAreaView>
   );
 }
 
@@ -210,7 +211,7 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#F5F5F5' },
 
   header: {
-    backgroundColor: '#2F95DC', padding: 20, paddingTop: 60,
+    backgroundColor: '#2F95DC', padding: 20, paddingVertical: 15,
     borderBottomLeftRadius: 20, borderBottomRightRadius: 20,
     alignItems: 'center', shadowColor: "#000", shadowOpacity: 0.2, elevation: 5
   },

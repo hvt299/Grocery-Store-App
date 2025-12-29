@@ -1,10 +1,11 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import {
   View, Text, FlatList, StyleSheet, TouchableOpacity,
-  Modal, TextInput, Alert, KeyboardAvoidingView, Platform
+  Modal, TextInput, Alert, KeyboardAvoidingView, Platform, RefreshControl
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Picker } from '@react-native-picker/picker';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 import {
   getProducts, getCategories, addProduct, deleteProduct, updateProduct,
@@ -27,6 +28,7 @@ export default function ProductScreen() {
   const [prodUnit, setProdUnit] = useState('cái');
   const [selectedCat, setSelectedCat] = useState<number | null>(null); // Dùng cho Modal
   const [editingProdId, setEditingProdId] = useState<number | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
 
   // --- STATE MODAL DANH MỤC ---
   const [catModalVisible, setCatModalVisible] = useState(false);
@@ -61,6 +63,12 @@ export default function ProductScreen() {
     } catch (error) {
       console.log('Lỗi tải dữ liệu');
     }
+  };
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await fetchData(); // Đợi tải xong dữ liệu
+    setRefreshing(false); // Tắt vòng quay
   };
 
   // --- LOGIC LỌC DANH SÁCH (MỚI - QUAN TRỌNG) ---
@@ -139,7 +147,7 @@ export default function ProductScreen() {
 
   // --- GIAO DIỆN ---
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Kho Hàng ({filteredList.length})</Text>
         <TouchableOpacity onPress={() => setCatModalVisible(true)} style={styles.iconBtn}>
@@ -196,6 +204,14 @@ export default function ProductScreen() {
         contentContainerStyle={{ paddingBottom: 80 }}
         ListEmptyComponent={
           <Text style={{ textAlign: 'center', marginTop: 30, color: 'gray' }}>Không tìm thấy sản phẩm nào</Text>
+        }
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            colors={['#2F95DC']} // Màu xanh cho Android
+            tintColor="#2F95DC"  // Màu xanh cho iOS
+          />
         }
         renderItem={({ item }) => (
           <TouchableOpacity style={styles.itemCard} onPress={() => openEditProduct(item)}>
@@ -270,13 +286,13 @@ export default function ProductScreen() {
           </View>
         </View>
       </Modal>
-    </View>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#F5F5F5' },
-  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 20, paddingTop: 50, backgroundColor: 'white', borderBottomWidth: 1, borderColor: '#ddd' },
+  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 20, paddingVertical: 15, backgroundColor: 'white', borderBottomWidth: 1, borderColor: '#ddd' },
   headerTitle: { fontSize: 20, fontWeight: 'bold' },
   iconBtn: { padding: 5, marginLeft: 15 },
 

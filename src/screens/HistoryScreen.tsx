@@ -2,12 +2,13 @@ import React, { useState, useEffect, useMemo } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity,
   Modal, ActivityIndicator, SectionList, Alert,
-  RefreshControl
+  Platform, RefreshControl
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import NetInfo from '@react-native-community/netinfo';
+import { StatusBar } from 'expo-status-bar';
 
 import { getInvoices, deleteInvoice } from '../services/productService';
 import { formatCurrency, formatDate } from '../utils/format';
@@ -164,7 +165,9 @@ export default function HistoryScreen() {
   );
 
   return (
-    <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
+    <SafeAreaView style={styles.container} edges={['top', 'left', 'right', 'bottom']}>
+      <StatusBar style="dark" backgroundColor="white" />
+
       {/* Header Thống Kê Hôm Nay */}
       <View style={styles.header}>
         <Text style={styles.headerLabel}>Doanh thu hôm nay</Text>

@@ -7,6 +7,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { Picker } from '@react-native-picker/picker';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import NetInfo from '@react-native-community/netinfo';
+import { StatusBar } from 'expo-status-bar';
 
 import {
   getProducts, getCategories, addProduct, deleteProduct, updateProduct,
@@ -158,7 +159,9 @@ export default function ProductScreen() {
 
   // --- GIAO DIỆN ---
   return (
-    <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
+    <SafeAreaView style={styles.container} edges={['top', 'left', 'right', 'bottom']}>
+      <StatusBar style="dark" backgroundColor="white" />
+
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Kho Hàng ({filteredList.length})</Text>
         <TouchableOpacity onPress={() => setCatModalVisible(true)} style={styles.iconBtn}>

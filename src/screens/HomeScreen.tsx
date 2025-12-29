@@ -7,6 +7,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import NetInfo from '@react-native-community/netinfo';
+import { StatusBar } from 'expo-status-bar';
 
 import { getProducts, getCategories, createInvoice } from '../services/productService';
 import { formatCurrency } from '../utils/format';
@@ -61,8 +62,6 @@ export default function HomeScreen({ navigation }: any) {
     // 2. TỰ ĐỘNG LOAD LẠI KHI CÓ MẠNG (THÊM ĐOẠN NÀY)
     const unsubscribeNet = NetInfo.addEventListener(state => {
       if (state.isConnected) {
-        // Chỉ log để test, trên production có thể bỏ log
-        console.log("Đã có mạng lại, tải dữ liệu...");
         fetchData();
       }
     });
@@ -204,7 +203,9 @@ export default function HomeScreen({ navigation }: any) {
   );
 
   return (
-    <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
+    <SafeAreaView style={styles.container} edges={['top', 'left', 'right', 'bottom']}>
+      <StatusBar style="dark" backgroundColor="white" />
+      
       {/* 1. HEADER HIỆN ĐẠI */}
       <View style={styles.header}>
         <View>

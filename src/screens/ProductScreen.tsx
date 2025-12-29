@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import {
   View, Text, FlatList, StyleSheet, TouchableOpacity,
-  Modal, TextInput, Alert, KeyboardAvoidingView, Platform, RefreshControl
+  Modal, TextInput, Alert, KeyboardAvoidingView, Platform, RefreshControl, Image
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Picker } from '@react-native-picker/picker';
@@ -27,7 +27,7 @@ export default function ProductScreen() {
   const [prodModalVisible, setProdModalVisible] = useState(false);
   const [prodName, setProdName] = useState('');
   const [prodPrice, setProdPrice] = useState('');
-  const [prodUnit, setProdUnit] = useState('cái');
+  const [prodUnit, setProdUnit] = useState('Cái');
   const [selectedCat, setSelectedCat] = useState<number | null>(null); // Dùng cho Modal
   const [editingProdId, setEditingProdId] = useState<number | null>(null);
   const [refreshing, setRefreshing] = useState(false);
@@ -98,7 +98,7 @@ export default function ProductScreen() {
   // --- CÁC HÀM XỬ LÝ CŨ (GIỮ NGUYÊN) ---
   const openAddProduct = () => {
     setEditingProdId(null);
-    setProdName(''); setProdPrice(''); setProdUnit('cái');
+    setProdName(''); setProdPrice(''); setProdUnit('Cái');
     // Mặc định chọn danh mục đầu tiên hoặc danh mục đang lọc
     if (filterCatId) setSelectedCat(filterCatId);
     else if (categories.length > 0) setSelectedCat(categories[0].id);
@@ -128,6 +128,7 @@ export default function ProductScreen() {
       else await addProduct(payload);
 
       setProdModalVisible(false);
+      await fetchData();
       Alert.alert('Xong', 'Đã lưu sản phẩm');
     } catch (error) {
       Alert.alert('Lỗi', 'Không lưu được');
@@ -137,7 +138,14 @@ export default function ProductScreen() {
   const handleDeleteProduct = (id: number) => {
     Alert.alert('Xóa món này?', '', [
       { text: 'Hủy', style: 'cancel' },
-      { text: 'Xóa', style: 'destructive', onPress: () => deleteProduct(id) }
+      {
+        text: 'Xóa',
+        style: 'destructive',
+        onPress: async () => {
+          await deleteProduct(id);
+          await fetchData();
+        }
+      }
     ]);
   };
 
@@ -147,13 +155,22 @@ export default function ProductScreen() {
       if (editingCatId) await updateCategory(editingCatId, catName);
       else await addCategory(catName);
       setCatName(''); setEditingCatId(null);
+      await fetchData();
     } catch (error) { Alert.alert('Lỗi', 'Không lưu được danh mục'); }
   };
 
   const handleEditCategory = (item: any) => { setCatName(item.name); setEditingCatId(item.id); };
   const handleDeleteCategory = (id: number) => {
     Alert.alert('Xóa danh mục?', 'Sản phẩm sẽ mất danh mục này.', [
-      { text: 'Hủy', style: 'cancel' }, { text: 'Xóa', style: 'destructive', onPress: () => deleteCategory(id) }
+      { text: 'Hủy', style: 'cancel' },
+      {
+        text: 'Xóa',
+        style: 'destructive',
+        onPress: async () => {
+          await deleteCategory(id);
+          await fetchData();
+        }
+      }
     ]);
   };
 
@@ -169,9 +186,8 @@ export default function ProductScreen() {
         </TouchableOpacity>
       </View>
 
-      {/* --- CÔNG CỤ TÌM KIẾM & LỌC (MỚI) --- */}
+      {/* --- CÔNG CỤ TÌM KIẾM & LỌC --- */}
       <View style={styles.filterContainer}>
-        {/* Ô tìm kiếm */}
         <View style={styles.searchBox}>
           <Ionicons name="search" size={20} color="gray" style={{ marginRight: 8 }} />
           <TextInput
@@ -187,7 +203,6 @@ export default function ProductScreen() {
           )}
         </View>
 
-        {/* Thanh lọc danh mục ngang */}
         <FlatList
           horizontal
           data={[{ id: null, name: 'Tất cả' }, ...categories]}
@@ -211,7 +226,7 @@ export default function ProductScreen() {
         />
       </View>
 
-      {/* --- DANH SÁCH SẢN PHẨM (Dùng filteredList) --- */}
+      {/* --- DANH SÁCH SẢN PHẨM --- */}
       <FlatList
         data={filteredList}
         keyExtractor={(item) => item.id.toString()}
@@ -223,13 +238,25 @@ export default function ProductScreen() {
           <RefreshControl
             refreshing={refreshing}
             onRefresh={onRefresh}
-            colors={['#2F95DC']} // Màu xanh cho Android
-            tintColor="#2F95DC"  // Màu xanh cho iOS
+            colors={['#2F95DC']}
+            tintColor="#2F95DC"
           />
         }
         renderItem={({ item }) => (
           <TouchableOpacity style={styles.itemCard} onPress={() => openEditProduct(item)}>
-            <View style={{ flex: 1 }}>
+
+            {/* 6. HIỂN THỊ ẢNH (MỚI) */}
+            <View style={styles.imgContainer}>
+              {item.image_url ? (
+                <Image source={{ uri: item.image_url }} style={styles.itemImg} />
+              ) : (
+                <View style={styles.itemImgPlaceholder}>
+                  <Text style={styles.itemImgText}>{item.name.charAt(0).toUpperCase()}</Text>
+                </View>
+              )}
+            </View>
+
+            <View style={{ flex: 1, marginLeft: 12 }}>
               <Text style={styles.itemName}>{item.name}</Text>
               <Text style={styles.itemSub}>{item.categories?.name || 'Chưa phân loại'} • {item.unit}</Text>
             </View>
@@ -247,12 +274,15 @@ export default function ProductScreen() {
         <Ionicons name="add" size={32} color="white" />
       </TouchableOpacity>
 
-      {/* --- MODAL SẢN PHẨM (Giữ nguyên) --- */}
+      {/* --- MODAL SẢN PHẨM (Giữ nguyên logic) --- */}
       <Modal visible={prodModalVisible} animationType="slide" transparent={true}>
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <Text style={styles.modalTitle}>{editingProdId ? 'Sửa món' : 'Thêm món'}</Text>
             <TextInput style={styles.input} placeholder="Tên món" value={prodName} onChangeText={setProdName} />
+
+            {/* Nếu sau này muốn thêm ô nhập URL ảnh thì thêm ở đây */}
+
             <View style={styles.row}>
               <TextInput style={[styles.input, { flex: 1, marginRight: 10 }]} placeholder="Giá bán" keyboardType="numeric" value={prodPrice} onChangeText={setProdPrice} />
               <TextInput style={[styles.input, { width: 100 }]} placeholder="Đơn vị" value={prodUnit} onChangeText={setProdUnit} />
@@ -271,7 +301,7 @@ export default function ProductScreen() {
         </KeyboardAvoidingView>
       </Modal>
 
-      {/* --- MODAL DANH MỤC (Giữ nguyên) --- */}
+      {/* --- MODAL DANH MỤC --- */}
       <Modal visible={catModalVisible} animationType="fade" transparent={true}>
         <View style={styles.modalOverlay}>
           <View style={[styles.modalContent, { height: '70%' }]}>
@@ -310,14 +340,13 @@ const styles = StyleSheet.create({
   headerTitle: { fontSize: 20, fontWeight: 'bold' },
   iconBtn: { padding: 5, marginLeft: 15 },
 
-  // Styles mới cho Thanh tìm kiếm & Filter
+  // Search & Filter
   filterContainer: { backgroundColor: 'white', paddingBottom: 10, marginBottom: 5 },
   searchBox: {
     flexDirection: 'row', alignItems: 'center', backgroundColor: '#F0F2F5',
     margin: 15, marginBottom: 5, paddingHorizontal: 10, borderRadius: 8, height: 40
   },
   searchInput: { flex: 1, fontSize: 16, height: '100%' },
-
   filterChip: {
     paddingHorizontal: 15, paddingVertical: 8, borderRadius: 20,
     backgroundColor: '#F0F2F5', marginRight: 10, marginLeft: 5, borderWidth: 1, borderColor: 'transparent'
@@ -326,13 +355,33 @@ const styles = StyleSheet.create({
   filterText: { color: 'gray', fontWeight: '500' },
   filterTextActive: { color: '#2F95DC', fontWeight: 'bold' },
 
-  // ... (Các styles cũ giữ nguyên)
-  itemCard: { flexDirection: 'row', justifyContent: 'space-between', backgroundColor: 'white', padding: 15, marginHorizontal: 15, marginTop: 10, borderRadius: 10, elevation: 2 },
+  // ITEM CARD (Đã sửa để hiện ảnh đẹp hơn)
+  itemCard: {
+    flexDirection: 'row',
+    alignItems: 'center', // Căn giữa dọc
+    backgroundColor: 'white',
+    padding: 15,
+    marginHorizontal: 15,
+    marginTop: 10,
+    borderRadius: 10,
+    elevation: 2
+  },
+  // Style cho ảnh
+  imgContainer: {
+    width: 50, height: 50, borderRadius: 8, overflow: 'hidden',
+    justifyContent: 'center', alignItems: 'center', backgroundColor: '#F0F4F8'
+  },
+  itemImg: { width: '100%', height: '100%', resizeMode: 'cover' },
+  itemImgPlaceholder: { width: '100%', height: '100%', justifyContent: 'center', alignItems: 'center', backgroundColor: '#E1F5FE' },
+  itemImgText: { fontSize: 18, fontWeight: 'bold', color: '#2F95DC' },
+
   itemName: { fontSize: 16, fontWeight: '600', color: '#333' },
   itemSub: { color: 'gray', fontSize: 13, marginTop: 4 },
   itemPrice: { fontSize: 16, fontWeight: 'bold', color: '#2F95DC' },
+
   fab: { position: 'absolute', right: 20, bottom: 20, backgroundColor: '#2F95DC', width: 60, height: 60, borderRadius: 30, justifyContent: 'center', alignItems: 'center', elevation: 5 },
 
+  // Modals
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', padding: 20 },
   modalContent: { backgroundColor: 'white', borderRadius: 15, padding: 20 },
   modalTitle: { fontSize: 18, fontWeight: 'bold', marginBottom: 15, textAlign: 'center' },

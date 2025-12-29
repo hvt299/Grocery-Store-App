@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import {
   View, Text, StyleSheet, FlatList, TouchableOpacity,
-  Dimensions, Alert, Modal, TextInput, Platform
+  Dimensions, Alert, Modal, TextInput, Platform, RefreshControl
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
@@ -36,6 +36,7 @@ export default function HomeScreen({ navigation }: any) {
   const [searchText, setSearchText] = useState('');
   const [cart, setCart] = useState<any[]>([]);
   const [cartVisible, setCartVisible] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
 
   // --- LOGIC LỜI CHÀO TỰ ĐỘNG ---
   const getGreetingTime = () => {
@@ -63,6 +64,12 @@ export default function HomeScreen({ navigation }: any) {
       setProducts(prods);
       setCategories([{ id: null, name: 'Tất cả' }, ...cats]);
     } catch (e) { console.log('Lỗi tải dữ liệu'); }
+  };
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await fetchData();
+    setRefreshing(false);
   };
 
   const filteredProducts = useMemo(() => {
@@ -239,6 +246,14 @@ export default function HomeScreen({ navigation }: any) {
         columnWrapperStyle={{ justifyContent: 'space-between' }}
         contentContainerStyle={{ padding: SPACING, paddingBottom: 100 }}
         showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            colors={['#007AFF']}
+            tintColor="#007AFF"
+          />
+        }
       />
 
       {/* 5. FLOATING CART (THANH TRÔI) */}

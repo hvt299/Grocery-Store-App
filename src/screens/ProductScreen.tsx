@@ -6,6 +6,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { Picker } from '@react-native-picker/picker';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import NetInfo from '@react-native-community/netinfo';
 
 import {
   getProducts, getCategories, addProduct, deleteProduct, updateProduct,
@@ -38,7 +39,7 @@ export default function ProductScreen() {
   useEffect(() => {
     fetchData();
 
-    // Realtime logic
+    // --- A. LOGIC REALTIME (CŨ) ---
     const productSub = supabase
       .channel('prods_realtime_v2')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'products' }, fetchData)
@@ -49,9 +50,19 @@ export default function ProductScreen() {
       .on('postgres_changes', { event: '*', schema: 'public', table: 'categories' }, fetchData)
       .subscribe();
 
+    // --- B. LOGIC TỰ LOAD KHI CÓ MẠNG (MỚI) ---
+    const unsubscribeNet = NetInfo.addEventListener(state => {
+      if (state.isConnected) {
+        // console.log('ProductScreen: Có mạng lại'); // Bỏ comment nếu muốn test
+        fetchData();
+      }
+    });
+
     return () => {
+      // Hủy đăng ký tất cả khi thoát màn hình
       supabase.removeChannel(productSub);
       supabase.removeChannel(catSub);
+      unsubscribeNet(); // <--- Quan trọng
     };
   }, []);
 

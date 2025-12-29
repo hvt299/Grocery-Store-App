@@ -1,14 +1,17 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity,
-  Modal, ActivityIndicator, SectionList, Alert
+  Modal, ActivityIndicator, SectionList, Alert,
+  RefreshControl
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import NetInfo from '@react-native-community/netinfo';
 
 import { getInvoices, deleteInvoice } from '../services/productService';
 import { formatCurrency, formatDate } from '../utils/format';
+import { supabase } from '../lib/supabase';
 
 export default function HistoryScreen() {
   const [invoices, setInvoices] = useState<any[]>([]);
@@ -23,6 +26,31 @@ export default function HistoryScreen() {
       fetchData();
     }, [])
   );
+
+  useEffect(() => {
+    // 1. Lắng nghe thay đổi từ Server (Realtime)
+    // Khi có đơn mới (INSERT) hoặc đơn bị xóa (DELETE) -> Tự tải lại
+    const invoiceSub = supabase
+      .channel('history_realtime')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'invoices' }, () => {
+        console.log('Có thay đổi lịch sử đơn hàng!');
+        fetchData();
+      })
+      .subscribe();
+
+    // 2. Lắng nghe trạng thái Mạng
+    const unsubscribeNet = NetInfo.addEventListener(state => {
+      if (state.isConnected) {
+        fetchData();
+      }
+    });
+
+    return () => {
+      // Hủy đăng ký khi thoát
+      supabase.removeChannel(invoiceSub);
+      unsubscribeNet();
+    };
+  }, []);
 
   const fetchData = async () => {
     setLoading(true);
@@ -91,10 +119,8 @@ export default function HistoryScreen() {
           text: 'Xóa vĩnh viễn', style: 'destructive',
           onPress: async () => {
             try {
-              setLoading(true);
               await deleteInvoice(id);
               setDetailVisible(false);
-              fetchData();
             } catch (error) { Alert.alert('Lỗi', 'Không xóa được.'); }
             finally { setLoading(false); }
           }
@@ -146,29 +172,42 @@ export default function HistoryScreen() {
       </View>
 
       <View style={styles.body}>
-        {loading && invoices.length === 0 ? (
-          <ActivityIndicator size="large" color="#2F95DC" style={{ marginTop: 20 }} />
-        ) : (
-          <SectionList
-            sections={sections}
-            keyExtractor={(item) => item.id.toString()}
-            renderItem={renderItem}
-            renderSectionHeader={renderSectionHeader}
-            contentContainerStyle={{ paddingBottom: 20 }}
-            stickySectionHeadersEnabled={false} // Để false nhìn tự nhiên hơn
-            refreshing={loading}
-            onRefresh={fetchData}
-            ListEmptyComponent={
-              <Text style={{ textAlign: 'center', marginTop: 30, color: 'gray' }}>Chưa có đơn hàng nào</Text>
-            }
-          />
-        )}
+        <SectionList
+          sections={sections}
+          keyExtractor={(item) => item.id.toString()}
+          renderItem={renderItem}
+          renderSectionHeader={renderSectionHeader}
+          contentContainerStyle={{ paddingBottom: 20 }}
+          stickySectionHeadersEnabled={false}
+          ListEmptyComponent={
+            <Text style={{ textAlign: 'center', marginTop: 30, color: 'gray' }}>Chưa có đơn hàng nào</Text>
+          }
+          refreshControl={
+            <RefreshControl
+              refreshing={loading}
+              onRefresh={fetchData}
+              colors={['#2F95DC']}
+              tintColor="#2F95DC"
+            />
+          }
+        />
       </View>
 
       {/* MODAL CHI TIẾT (Giữ nguyên) */}
-      <Modal visible={detailVisible} animationType="slide" transparent={true}>
+      <Modal
+        visible={detailVisible}
+        animationType="slide"
+        transparent={true}
+        statusBarTranslucent={true}
+      >
         <View style={styles.modalOverlay}>
+          {/* Bấm ra ngoài để đóng */}
+          <TouchableOpacity style={{ flex: 1 }} onPress={() => setDetailVisible(false)} />
+
           <View style={styles.modalContent}>
+            {/* Thanh nắm kéo giả */}
+            <View style={styles.modalHandle} />
+
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Chi tiết đơn hàng</Text>
               <View style={{ flexDirection: 'row', alignItems: 'center' }}>
@@ -224,7 +263,7 @@ const styles = StyleSheet.create({
   sectionHeader: {
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
     paddingVertical: 10, marginTop: 10, marginBottom: 5,
-    backgroundColor: '#F5F5F5' // Màu nền trùng container để chữ nổi lên
+    backgroundColor: '#F5F5F5'
   },
   sectionTitle: { fontSize: 14, fontWeight: 'bold', color: 'gray', textTransform: 'uppercase' },
   sectionTotal: { fontSize: 14, fontWeight: 'bold', color: '#333' },
@@ -244,11 +283,20 @@ const styles = StyleSheet.create({
   amountText: { fontSize: 16, fontWeight: 'bold', color: '#333' },
 
   // Modal Styles (Giữ nguyên)
-  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', padding: 20 },
-  modalContent: { backgroundColor: 'white', borderRadius: 15, padding: 20, maxHeight: '80%' },
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
+  modalContent: {
+    backgroundColor: 'white',
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    padding: 20,
+    minHeight: '40%',
+    shadowColor: "#000", shadowOpacity: 0.2, shadowRadius: 10, elevation: 10
+  },
+  modalHandle: { width: 40, height: 5, backgroundColor: '#DDD', borderRadius: 3, alignSelf: 'center', marginBottom: 15 },
   modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 15 },
   modalTitle: { fontSize: 18, fontWeight: 'bold' },
   modalDate: { color: 'gray', fontSize: 14, marginBottom: 10 },
+
   divider: { height: 1, backgroundColor: '#eee', marginVertical: 5 },
   detailRow: { flexDirection: 'row', justifyContent: 'space-between', marginVertical: 5 },
   detailName: { flex: 1, fontSize: 15, color: '#333' },

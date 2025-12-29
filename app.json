@@ -23,12 +23,7 @@
       "edgeToEdgeEnabled": true,
       "package": "com.huathai.GroceryStoreApp",
       "softwareKeyboardLayoutMode": "pan",
-      "userInterfaceStyle": "light",
-      "androidNavigationBar": {
-        "visible": "shown",
-        "barStyle": "dark-content",
-        "backgroundColor": "#ffffff"
-      }
+      "userInterfaceStyle": "light"
     },
     "web": {
       "favicon": "./assets/logo-app.png"
@@ -39,7 +34,12 @@
       }
     },
     "plugins": [
-      "expo-font"
+      "expo-font",
+      "expo-navigation-bar",
+      {
+        "barStyle": "dark-content",
+        "backgroundColor": "#FFFFFF"
+      }
     ]
   }
 }

@@ -6,6 +6,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import NetInfo from '@react-native-community/netinfo';
 
 import { getProducts, getCategories, createInvoice } from '../services/productService';
 import { formatCurrency } from '../utils/format';
@@ -53,9 +54,24 @@ export default function HomeScreen({ navigation }: any) {
   useFocusEffect(React.useCallback(() => { fetchData(); }, []));
 
   useEffect(() => {
+    // 1. Realtime Supabase (Giữ nguyên)
     const pSub = supabase.channel('h_prods').on('postgres_changes', { event: '*', schema: 'public', table: 'products' }, fetchData).subscribe();
     const cSub = supabase.channel('h_cats').on('postgres_changes', { event: '*', schema: 'public', table: 'categories' }, fetchData).subscribe();
-    return () => { supabase.removeChannel(pSub); supabase.removeChannel(cSub); };
+
+    // 2. TỰ ĐỘNG LOAD LẠI KHI CÓ MẠNG (THÊM ĐOẠN NÀY)
+    const unsubscribeNet = NetInfo.addEventListener(state => {
+      if (state.isConnected) {
+        // Chỉ log để test, trên production có thể bỏ log
+        console.log("Đã có mạng lại, tải dữ liệu...");
+        fetchData();
+      }
+    });
+
+    return () => {
+      supabase.removeChannel(pSub);
+      supabase.removeChannel(cSub);
+      unsubscribeNet(); // Quan trọng: Hủy lắng nghe khi thoát màn hình
+    };
   }, []);
 
   const fetchData = async () => {
@@ -278,34 +294,38 @@ export default function HomeScreen({ navigation }: any) {
       )}
 
       {/* --- MODAL GIỎ HÀNG (FULL REDESIGN) --- */}
-      <Modal visible={cartVisible} animationType="slide" presentationStyle="formSheet">
-        <View style={styles.modalContainer}>
-          {/* Modal Header */}
-          <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>Giỏ hàng ({totalQuantity})</Text>
-            <TouchableOpacity onPress={() => setCartVisible(false)} style={styles.modalCloseBtn}>
-              <Ionicons name="close" size={24} color={COLORS.text} />
-            </TouchableOpacity>
-          </View>
+      <Modal visible={cartVisible} animationType="slide" transparent={true} statusBarTranslucent={true}>
+        <View style={styles.modalOverlay}>
+          <TouchableOpacity style={{ flex: 1 }} onPress={() => setCartVisible(false)} />
 
-          {/* List sản phẩm trong giỏ */}
-          <FlatList
-            data={cart}
-            keyExtractor={item => item.id.toString()}
-            contentContainerStyle={{ padding: SPACING }}
-            renderItem={renderCartItem}
-            ListFooterComponent={<View style={{ height: 20 }} />}
-          />
-
-          {/* Modal Footer (Thanh toán) */}
-          <View style={styles.modalFooter}>
-            <View style={styles.billRow}>
-              <Text style={styles.billLabel}>Tạm tính:</Text>
-              <Text style={styles.billValue}>{formatCurrency(totalAmount)}</Text>
+          <View style={styles.modalContent}>
+            {/* Modal Header */}
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Giỏ hàng ({totalQuantity})</Text>
+              <TouchableOpacity onPress={() => setCartVisible(false)} style={styles.modalCloseBtn}>
+                <Ionicons name="close" size={24} color={COLORS.text} />
+              </TouchableOpacity>
             </View>
-            <TouchableOpacity style={styles.checkoutBigBtn} onPress={handleCheckout}>
-              <Text style={styles.checkoutBigText}>THANH TOÁN • {formatCurrency(totalAmount)}</Text>
-            </TouchableOpacity>
+
+            {/* List sản phẩm trong giỏ */}
+            <FlatList
+              data={cart}
+              keyExtractor={item => item.id.toString()}
+              contentContainerStyle={{ padding: SPACING }}
+              renderItem={renderCartItem}
+              ListFooterComponent={<View style={{ height: 20 }} />}
+            />
+
+            {/* Modal Footer (Thanh toán) */}
+            <View style={styles.modalFooter}>
+              <View style={styles.billRow}>
+                <Text style={styles.billLabel}>Tạm tính:</Text>
+                <Text style={styles.billValue}>{formatCurrency(totalAmount)}</Text>
+              </View>
+              <TouchableOpacity style={styles.checkoutBigBtn} onPress={handleCheckout}>
+                <Text style={styles.checkoutBigText}>THANH TOÁN • {formatCurrency(totalAmount)}</Text>
+              </TouchableOpacity>
+            </View>
           </View>
         </View>
       </Modal>
@@ -360,8 +380,26 @@ const styles = StyleSheet.create({
   floatCartCheckout: { color: '#FFF', fontWeight: 'bold', fontSize: 14, marginRight: 4 },
 
   // MODAL STYLES (New)
-  modalContainer: { flex: 1, backgroundColor: '#F8F9FA' },
-  modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: SPACING, backgroundColor: '#FFF', borderBottomWidth: 1, borderBottomColor: '#EEE' },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'flex-end'
+  },
+  modalContent: {
+    backgroundColor: '#F8F9FA', // Màu nền chung cho cả khối
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    maxHeight: '85%', // Giới hạn chiều cao
+    width: '100%',
+    shadowColor: "#000", shadowOpacity: 0.2, shadowRadius: 10, elevation: 10
+  },
+  modalHeader: {
+    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
+    padding: SPACING,
+    borderBottomWidth: 1, borderBottomColor: '#EEE',
+    backgroundColor: '#FFF', // Header nền trắng
+    borderTopLeftRadius: 24, borderTopRightRadius: 24 // Bo góc theo content
+  },
   modalTitle: { fontSize: 20, fontWeight: '800', color: COLORS.text },
   modalCloseBtn: { padding: 5 },
 

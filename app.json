@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "Grocery Store App",
-    "slug": "Grocery Store App",
+    "slug": "GroceryStoreApp",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/logo-app.png",
@@ -17,7 +17,7 @@
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/adaptive-icon.png",
+        "foregroundImage": "./assets/logo-app.png",
         "backgroundColor": "#ffffff"
       },
       "edgeToEdgeEnabled": true,

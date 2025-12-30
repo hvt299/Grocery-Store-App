@@ -1,7 +1,8 @@
-import React, { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import {
   View, Text, FlatList, StyleSheet, TouchableOpacity,
-  Modal, TextInput, Alert, KeyboardAvoidingView, Platform, RefreshControl, Image
+  Modal, TextInput, Alert, KeyboardAvoidingView, Platform, RefreshControl, Image,
+  TouchableWithoutFeedback, Keyboard
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Picker } from '@react-native-picker/picker';
@@ -275,60 +276,68 @@ export default function ProductScreen() {
       </TouchableOpacity>
 
       {/* --- MODAL SẢN PHẨM (Giữ nguyên logic) --- */}
-      <Modal visible={prodModalVisible} animationType="slide" transparent={true}>
-        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>{editingProdId ? 'Sửa món' : 'Thêm món'}</Text>
-            <TextInput style={styles.input} placeholder="Tên món" value={prodName} onChangeText={setProdName} />
+      <Modal visible={prodModalVisible} animationType="fade" transparent={true}>
+        {/* Lớp bọc ngoài: Bấm vào đây để đóng Modal + Ẩn bàn phím */}
+        <TouchableWithoutFeedback onPress={() => { Keyboard.dismiss(); setProdModalVisible(false); }}>
+          <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.modalOverlay}>
 
-            {/* Nếu sau này muốn thêm ô nhập URL ảnh thì thêm ở đây */}
+            {/* Lớp bọc trong: Bấm vào đây KHÔNG làm gì cả (để chặn sự kiện đóng modal) */}
+            <TouchableWithoutFeedback onPress={() => { }}>
+              <View style={styles.modalContent}>
+                <Text style={styles.modalTitle}>{editingProdId ? 'Sửa món' : 'Thêm món'}</Text>
+                <TextInput style={styles.input} placeholder="Tên món" value={prodName} onChangeText={setProdName} />
+                <View style={styles.row}>
+                  <TextInput style={[styles.input, { flex: 1, marginRight: 10 }]} placeholder="Giá bán" keyboardType="numeric" value={prodPrice} onChangeText={setProdPrice} />
+                  <TextInput style={[styles.input, { width: 100 }]} placeholder="Đơn vị" value={prodUnit} onChangeText={setProdUnit} />
+                </View>
+                <Text style={styles.label}>Chọn danh mục:</Text>
+                <View style={styles.pickerContainer}>
+                  <Picker selectedValue={selectedCat} onValueChange={(v) => setSelectedCat(v)}>
+                    {categories.map((c) => <Picker.Item key={c.id} label={c.name} value={c.id} />)}
+                  </Picker>
+                </View>
+                <View style={styles.modalButtons}>
+                  <TouchableOpacity style={[styles.btn, styles.btnCancel]} onPress={() => setProdModalVisible(false)}><Text style={{ color: 'white' }}>Hủy</Text></TouchableOpacity>
+                  <TouchableOpacity style={[styles.btn, styles.btnSave]} onPress={handleSaveProduct}><Text style={{ color: 'white', fontWeight: 'bold' }}>Lưu</Text></TouchableOpacity>
+                </View>
+              </View>
+            </TouchableWithoutFeedback>
 
-            <View style={styles.row}>
-              <TextInput style={[styles.input, { flex: 1, marginRight: 10 }]} placeholder="Giá bán" keyboardType="numeric" value={prodPrice} onChangeText={setProdPrice} />
-              <TextInput style={[styles.input, { width: 100 }]} placeholder="Đơn vị" value={prodUnit} onChangeText={setProdUnit} />
-            </View>
-            <Text style={styles.label}>Chọn danh mục:</Text>
-            <View style={styles.pickerContainer}>
-              <Picker selectedValue={selectedCat} onValueChange={(v) => setSelectedCat(v)}>
-                {categories.map((c) => <Picker.Item key={c.id} label={c.name} value={c.id} />)}
-              </Picker>
-            </View>
-            <View style={styles.modalButtons}>
-              <TouchableOpacity style={[styles.btn, styles.btnCancel]} onPress={() => setProdModalVisible(false)}><Text style={{ color: 'white' }}>Hủy</Text></TouchableOpacity>
-              <TouchableOpacity style={[styles.btn, styles.btnSave]} onPress={handleSaveProduct}><Text style={{ color: 'white', fontWeight: 'bold' }}>Lưu</Text></TouchableOpacity>
-            </View>
-          </View>
-        </KeyboardAvoidingView>
+          </KeyboardAvoidingView>
+        </TouchableWithoutFeedback>
       </Modal>
 
       {/* --- MODAL DANH MỤC --- */}
       <Modal visible={catModalVisible} animationType="fade" transparent={true}>
-        <View style={styles.modalOverlay}>
-          <View style={[styles.modalContent, { height: '70%' }]}>
-            <View style={styles.modalHeaderRow}>
-              <Text style={styles.modalTitle}>Quản lý Danh mục</Text>
-              <TouchableOpacity onPress={() => setCatModalVisible(false)}><Ionicons name="close" size={24} color="gray" /></TouchableOpacity>
-            </View>
-            <View style={styles.addCatRow}>
-              <TextInput style={[styles.input, { marginBottom: 0, flex: 1 }]} placeholder="Nhập tên danh mục..." value={catName} onChangeText={setCatName} />
-              <TouchableOpacity style={styles.addCatBtn} onPress={handleSaveCategory}><Ionicons name={editingCatId ? "checkmark" : "add"} size={24} color="white" /></TouchableOpacity>
-              {editingCatId && (<TouchableOpacity style={[styles.addCatBtn, { backgroundColor: 'gray', marginLeft: 5 }]} onPress={() => { setEditingCatId(null); setCatName(''); }}><Ionicons name="close" size={24} color="white" /></TouchableOpacity>)}
-            </View>
-            <FlatList
-              data={categories}
-              keyExtractor={item => item.id.toString()}
-              renderItem={({ item }) => (
-                <View style={styles.catItemRow}>
-                  <Text style={styles.catItemText}>{item.name}</Text>
-                  <View style={{ flexDirection: 'row' }}>
-                    <TouchableOpacity onPress={() => handleEditCategory(item)} style={{ padding: 8 }}><Ionicons name="pencil" size={20} color="#2F95DC" /></TouchableOpacity>
-                    <TouchableOpacity onPress={() => handleDeleteCategory(item.id)} style={{ padding: 8 }}><Ionicons name="trash-outline" size={20} color="red" /></TouchableOpacity>
-                  </View>
+        <TouchableWithoutFeedback onPress={() => { Keyboard.dismiss(); setCatModalVisible(false); }}>
+          <View style={styles.modalOverlay}>
+
+            <TouchableWithoutFeedback onPress={() => { }}>
+              <View style={[styles.modalContent, { height: '70%' }]}>
+                <View style={styles.modalHeaderRow}>
+                  <Text style={styles.modalTitle}>Quản lý Danh mục</Text>
+                  <TouchableOpacity onPress={() => setCatModalVisible(false)}><Ionicons name="close" size={24} color="gray" /></TouchableOpacity>
                 </View>
-              )}
-            />
+                <View style={styles.addCatRow}>
+                  <TextInput style={[styles.input, { marginBottom: 0, flex: 1 }]} placeholder="Nhập tên danh mục..." value={catName} onChangeText={setCatName} />
+                  <TouchableOpacity style={styles.addCatBtn} onPress={handleSaveCategory}><Ionicons name={editingCatId ? "checkmark" : "add"} size={24} color="white" /></TouchableOpacity>
+                  {editingCatId && (<TouchableOpacity style={[styles.addCatBtn, { backgroundColor: 'gray', marginLeft: 5 }]} onPress={() => { setEditingCatId(null); setCatName(''); }}><Ionicons name="close" size={24} color="white" /></TouchableOpacity>)}
+                </View>
+                <FlatList data={categories} keyExtractor={item => item.id.toString()} renderItem={({ item }) => (
+                  <View style={styles.catItemRow}>
+                    <Text style={styles.catItemText}>{item.name}</Text>
+                    <View style={{ flexDirection: 'row' }}>
+                      <TouchableOpacity onPress={() => handleEditCategory(item)} style={{ padding: 8 }}><Ionicons name="pencil" size={20} color="#2F95DC" /></TouchableOpacity>
+                      <TouchableOpacity onPress={() => handleDeleteCategory(item.id)} style={{ padding: 8 }}><Ionicons name="trash-outline" size={20} color="red" /></TouchableOpacity>
+                    </View>
+                  </View>
+                )}
+                />
+              </View>
+            </TouchableWithoutFeedback>
+
           </View>
-        </View>
+        </TouchableWithoutFeedback>
       </Modal>
     </SafeAreaView>
   );

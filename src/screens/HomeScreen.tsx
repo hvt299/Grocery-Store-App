@@ -154,7 +154,7 @@ export default function HomeScreen({ navigation }: any) {
         {/* Placeholder Image đẹp hơn */}
         <View style={styles.cardImgPlaceholder}>
           {item.image_url ? (
-            <Image source={{ uri: item.image_url }} style={styles.productImage} resizeMode="cover" />
+            <Image source={{ uri: item.image_url }} style={styles.productImage} resizeMode="cover" resizeMethod="resize" />
           ) : (
             <Text style={styles.cardImgText}>{item.name.charAt(0).toUpperCase()}</Text>
           )}
@@ -279,6 +279,10 @@ export default function HomeScreen({ navigation }: any) {
             tintColor="#007AFF"
           />
         }
+        initialNumToRender={8}
+        maxToRenderPerBatch={4}
+        windowSize={5}
+        removeClippedSubviews={true}
       />
 
       {/* 5. FLOATING CART (THANH TRÔI) */}

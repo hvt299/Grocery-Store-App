@@ -29,6 +29,10 @@ export default function AppNavigator() {
                 tabBarActiveTintColor: '#2F95DC',
                 tabBarInactiveTintColor: 'gray',
                 headerShown: false,
+                tabBarStyle: {
+                    backgroundColor: '#FFFFFF',
+                    borderTopColor: '#EEE',
+                }
             })}
         >
             <Tab.Screen name="Bán Hàng" component={HomeScreen} />

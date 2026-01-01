@@ -243,13 +243,17 @@ export default function ProductScreen() {
             tintColor="#2F95DC"
           />
         }
+        initialNumToRender={10}
+        maxToRenderPerBatch={5}
+        windowSize={5}
+        removeClippedSubviews={true}
         renderItem={({ item }) => (
           <TouchableOpacity style={styles.itemCard} onPress={() => openEditProduct(item)}>
 
             {/* 6. HIỂN THỊ ẢNH (MỚI) */}
             <View style={styles.imgContainer}>
               {item.image_url ? (
-                <Image source={{ uri: item.image_url }} style={styles.itemImg} />
+                <Image source={{ uri: item.image_url }} style={styles.itemImg} resizeMode="cover" resizeMethod="resize" />
               ) : (
                 <View style={styles.itemImgPlaceholder}>
                   <Text style={styles.itemImgText}>{item.name.charAt(0).toUpperCase()}</Text>
@@ -355,7 +359,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', backgroundColor: '#F0F2F5',
     margin: 15, marginBottom: 5, paddingHorizontal: 10, borderRadius: 8, height: 40
   },
-  searchInput: { flex: 1, fontSize: 16, height: '100%' },
+  searchInput: { flex: 1, fontSize: 16, height: '100%', color: '#333' },
   filterChip: {
     paddingHorizontal: 15, paddingVertical: 8, borderRadius: 20,
     backgroundColor: '#F0F2F5', marginRight: 10, marginLeft: 5, borderWidth: 1, borderColor: 'transparent'
@@ -394,7 +398,7 @@ const styles = StyleSheet.create({
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', padding: 20 },
   modalContent: { backgroundColor: 'white', borderRadius: 15, padding: 20 },
   modalTitle: { fontSize: 18, fontWeight: 'bold', marginBottom: 15, textAlign: 'center' },
-  input: { borderWidth: 1, borderColor: '#ddd', borderRadius: 8, padding: 12, marginBottom: 15, fontSize: 16 },
+  input: { borderWidth: 1, borderColor: '#ddd', borderRadius: 8, padding: 12, marginBottom: 15, fontSize: 16, color: '#333' },
   row: { flexDirection: 'row' },
   label: { marginBottom: 5, color: 'gray' },
   pickerContainer: { borderWidth: 1, borderColor: '#ddd', borderRadius: 8, marginBottom: 20 },

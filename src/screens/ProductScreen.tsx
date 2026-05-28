@@ -14,26 +14,23 @@ import {
   getProducts, getCategories, addProduct, deleteProduct, updateProduct,
   addCategory, updateCategory, deleteCategory
 } from '../services/productService';
-import { supabase } from '../lib/supabase';
+import { socket } from '../lib/socket';
 
 export default function ProductScreen() {
   const [products, setProducts] = useState<any[]>([]);
   const [categories, setCategories] = useState<any[]>([]);
 
-  // --- STATE TÌM KIẾM & LỌC (MỚI) ---
   const [searchText, setSearchText] = useState('');
-  const [filterCatId, setFilterCatId] = useState<number | null>(null); // null = Hiện tất cả
+  const [filterCatId, setFilterCatId] = useState<number | null>(null);
 
-  // --- STATE MODAL SẢN PHẨM ---
   const [prodModalVisible, setProdModalVisible] = useState(false);
   const [prodName, setProdName] = useState('');
   const [prodPrice, setProdPrice] = useState('');
   const [prodUnit, setProdUnit] = useState('Cái');
-  const [selectedCat, setSelectedCat] = useState<number | null>(null); // Dùng cho Modal
+  const [selectedCat, setSelectedCat] = useState<number | null>(null);
   const [editingProdId, setEditingProdId] = useState<number | null>(null);
   const [refreshing, setRefreshing] = useState(false);
 
-  // --- STATE MODAL DANH MỤC ---
   const [catModalVisible, setCatModalVisible] = useState(false);
   const [catName, setCatName] = useState('');
   const [editingCatId, setEditingCatId] = useState<number | null>(null);
@@ -41,30 +38,19 @@ export default function ProductScreen() {
   useEffect(() => {
     fetchData();
 
-    // --- A. LOGIC REALTIME (CŨ) ---
-    const productSub = supabase
-      .channel('prods_realtime_v2')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'products' }, fetchData)
-      .subscribe();
+    socket.on('product_changed', fetchData);
+    socket.on('category_changed', fetchData);
 
-    const catSub = supabase
-      .channel('cats_realtime_v2')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'categories' }, fetchData)
-      .subscribe();
-
-    // --- B. LOGIC TỰ LOAD KHI CÓ MẠNG (MỚI) ---
     const unsubscribeNet = NetInfo.addEventListener(state => {
       if (state.isConnected) {
-        // console.log('ProductScreen: Có mạng lại'); // Bỏ comment nếu muốn test
         fetchData();
       }
     });
 
     return () => {
-      // Hủy đăng ký tất cả khi thoát màn hình
-      supabase.removeChannel(productSub);
-      supabase.removeChannel(catSub);
-      unsubscribeNet(); // <--- Quan trọng
+      socket.off('product_changed', fetchData);
+      socket.off('category_changed', fetchData);
+      unsubscribeNet();
     };
   }, []);
 
@@ -80,27 +66,22 @@ export default function ProductScreen() {
 
   const onRefresh = async () => {
     setRefreshing(true);
-    await fetchData(); // Đợi tải xong dữ liệu
-    setRefreshing(false); // Tắt vòng quay
+    await fetchData();
+    setRefreshing(false);
   };
 
-  // --- LOGIC LỌC DANH SÁCH (MỚI - QUAN TRỌNG) ---
   const filteredList = useMemo(() => {
     return products.filter(p => {
-      // 1. Lọc theo tên (không phân biệt hoa thường)
       const matchName = p.name.toLowerCase().includes(searchText.toLowerCase());
-      // 2. Lọc theo danh mục
       const matchCat = filterCatId === null || p.category_id === filterCatId;
 
       return matchName && matchCat;
     });
   }, [products, searchText, filterCatId]);
 
-  // --- CÁC HÀM XỬ LÝ CŨ (GIỮ NGUYÊN) ---
   const openAddProduct = () => {
     setEditingProdId(null);
     setProdName(''); setProdPrice(''); setProdUnit('Cái');
-    // Mặc định chọn danh mục đầu tiên hoặc danh mục đang lọc
     if (filterCatId) setSelectedCat(filterCatId);
     else if (categories.length > 0) setSelectedCat(categories[0].id);
 
@@ -175,10 +156,9 @@ export default function ProductScreen() {
     ]);
   };
 
-  // --- GIAO DIỆN ---
   return (
     <SafeAreaView style={styles.container} edges={['top', 'left', 'right', 'bottom']}>
-      <StatusBar style="dark" backgroundColor="white" />
+      <StatusBar style="dark" />
 
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Kho Hàng ({filteredList.length})</Text>
@@ -353,7 +333,6 @@ const styles = StyleSheet.create({
   headerTitle: { fontSize: 20, fontWeight: 'bold' },
   iconBtn: { padding: 5, marginLeft: 15 },
 
-  // Search & Filter
   filterContainer: { backgroundColor: 'white', paddingBottom: 10, marginBottom: 5 },
   searchBox: {
     flexDirection: 'row', alignItems: 'center', backgroundColor: '#F0F2F5',
@@ -368,10 +347,9 @@ const styles = StyleSheet.create({
   filterText: { color: 'gray', fontWeight: '500' },
   filterTextActive: { color: '#2F95DC', fontWeight: 'bold' },
 
-  // ITEM CARD (Đã sửa để hiện ảnh đẹp hơn)
   itemCard: {
     flexDirection: 'row',
-    alignItems: 'center', // Căn giữa dọc
+    alignItems: 'center',
     backgroundColor: 'white',
     padding: 15,
     marginHorizontal: 15,
@@ -379,7 +357,6 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     elevation: 2
   },
-  // Style cho ảnh
   imgContainer: {
     width: 50, height: 50, borderRadius: 8, overflow: 'hidden',
     justifyContent: 'center', alignItems: 'center', backgroundColor: '#F0F4F8'
@@ -394,7 +371,6 @@ const styles = StyleSheet.create({
 
   fab: { position: 'absolute', right: 20, bottom: 20, backgroundColor: '#2F95DC', width: 60, height: 60, borderRadius: 30, justifyContent: 'center', alignItems: 'center', elevation: 5 },
 
-  // Modals
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', padding: 20 },
   modalContent: { backgroundColor: 'white', borderRadius: 15, padding: 20 },
   modalTitle: { fontSize: 18, fontWeight: 'bold', marginBottom: 15, textAlign: 'center' },

@@ -12,13 +12,12 @@ import { StatusBar } from 'expo-status-bar';
 
 import { getInvoices, deleteInvoice } from '../services/productService';
 import { formatCurrency, formatDate } from '../utils/format';
-import { supabase } from '../lib/supabase';
+import { socket } from '../lib/socket';
 
 export default function HistoryScreen() {
   const [invoices, setInvoices] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
 
-  // State Modal
   const [selectedInvoice, setSelectedInvoice] = useState<any | null>(null);
   const [detailVisible, setDetailVisible] = useState(false);
 
@@ -29,17 +28,9 @@ export default function HistoryScreen() {
   );
 
   useEffect(() => {
-    // 1. Lắng nghe thay đổi từ Server (Realtime)
-    // Khi có đơn mới (INSERT) hoặc đơn bị xóa (DELETE) -> Tự tải lại
-    const invoiceSub = supabase
-      .channel('history_realtime')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'invoices' }, () => {
-        console.log('Có thay đổi lịch sử đơn hàng!');
-        fetchData();
-      })
-      .subscribe();
+    socket.on('invoice_added', fetchData);
+    socket.on('invoice_changed', fetchData);
 
-    // 2. Lắng nghe trạng thái Mạng
     const unsubscribeNet = NetInfo.addEventListener(state => {
       if (state.isConnected) {
         fetchData();
@@ -47,8 +38,8 @@ export default function HistoryScreen() {
     });
 
     return () => {
-      // Hủy đăng ký khi thoát
-      supabase.removeChannel(invoiceSub);
+      socket.off('invoice_added', fetchData);
+      socket.off('invoice_changed', fetchData);
       unsubscribeNet();
     };
   }, []);
@@ -57,7 +48,6 @@ export default function HistoryScreen() {
     setLoading(true);
     try {
       const data = await getInvoices();
-      // data từ Supabase đã được sắp xếp giảm dần (mới nhất trước)
       setInvoices(data || []);
     } catch (error) {
       console.log('Lỗi tải lịch sử', error);
@@ -66,7 +56,6 @@ export default function HistoryScreen() {
     }
   };
 
-  // --- LOGIC NHÓM ĐƠN HÀNG THEO NGÀY (QUAN TRỌNG) ---
   const sections = useMemo(() => {
     if (invoices.length === 0) return [];
 
@@ -74,20 +63,17 @@ export default function HistoryScreen() {
     let currentSection: any = null;
 
     invoices.forEach((item) => {
-      // Lấy ngày tháng năm (VD: 28/12/2024)
       const dateKey = new Date(item.created_at).toLocaleDateString('vi-VN');
 
-      // Nếu chưa có nhóm hoặc ngày khác nhóm hiện tại -> Tạo nhóm mới
       if (!currentSection || currentSection.title !== dateKey) {
         currentSection = {
           title: dateKey,
           data: [],
-          dayTotal: 0 // Biến để cộng dồn tiền trong ngày
+          dayTotal: 0
         };
         grouped.push(currentSection);
       }
 
-      // Thêm đơn hàng vào nhóm
       currentSection.data.push(item);
       currentSection.dayTotal += item.total_amount;
     });
@@ -95,16 +81,12 @@ export default function HistoryScreen() {
     return grouped;
   }, [invoices]);
 
-  // --- TÍNH TỔNG DOANH THU TOÀN BỘ (Hoặc chỉ hôm nay tùy bạn) ---
-  // Ở đây mình để tổng doanh thu HÔM NAY trên header cho nổi bật
   const todayRevenue = useMemo(() => {
     const today = new Date().toLocaleDateString('vi-VN');
     const todaySection = sections.find(s => s.title === today);
     return todaySection ? todaySection.dayTotal : 0;
   }, [sections]);
 
-
-  // --- CÁC HÀM XỬ LÝ (Giữ nguyên) ---
   const openDetail = (invoice: any) => {
     setSelectedInvoice(invoice);
     setDetailVisible(true);
@@ -132,9 +114,6 @@ export default function HistoryScreen() {
     );
   };
 
-  // --- RENDER ---
-
-  // 1. Render từng dòng hóa đơn
   const renderItem = ({ item }: { item: any }) => (
     <TouchableOpacity style={styles.card} onPress={() => openDetail(item)}>
       <View style={styles.cardRow}>
@@ -158,7 +137,6 @@ export default function HistoryScreen() {
     </TouchableOpacity>
   );
 
-  // 2. Render Tiêu đề ngày (Mới)
   const renderSectionHeader = ({ section: { title, dayTotal } }: any) => (
     <View style={styles.sectionHeader}>
       <Text style={styles.sectionTitle}>Ngày {title}</Text>
@@ -168,7 +146,7 @@ export default function HistoryScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={['top', 'left', 'right', 'bottom']}>
-      <StatusBar style="dark" backgroundColor="white" />
+      <StatusBar style="dark" />
 
       {/* Header Thống Kê Hôm Nay */}
       <View style={styles.header}>
@@ -264,7 +242,6 @@ const styles = StyleSheet.create({
 
   body: { flex: 1, padding: 15 },
 
-  // Styles cho Section Header (Ngày tháng)
   sectionHeader: {
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
     paddingVertical: 10, marginTop: 10, marginBottom: 5,
@@ -273,7 +250,6 @@ const styles = StyleSheet.create({
   sectionTitle: { fontSize: 14, fontWeight: 'bold', color: 'gray', textTransform: 'uppercase' },
   sectionTotal: { fontSize: 14, fontWeight: 'bold', color: '#333' },
 
-  // Card hóa đơn
   card: { backgroundColor: 'white', borderRadius: 12, padding: 15, marginBottom: 8, elevation: 1 },
   cardRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
 
@@ -287,7 +263,6 @@ const styles = StyleSheet.create({
   itemCount: { fontSize: 12, color: 'gray', marginTop: 2 },
   amountText: { fontSize: 16, fontWeight: 'bold', color: '#333' },
 
-  // Modal Styles (Giữ nguyên)
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
   modalContent: {
     backgroundColor: 'white',

@@ -11,24 +11,22 @@ import { StatusBar } from 'expo-status-bar';
 
 import { getProducts, getCategories, createInvoice } from '../services/productService';
 import { formatCurrency } from '../utils/format';
-import { supabase } from '../lib/supabase';
+import { socket } from '../lib/socket';
 
-// --- CẤU HÌNH UI ---
 const { width } = Dimensions.get('window');
-const SPACING = 16; // Khoảng cách chuẩn
+const SPACING = 16;
 const COLUMN_COUNT = 2;
-// Tính toán chiều rộng item: (Màn hình - Padding trái phải - Khoảng giữa) / 2
 const ITEM_WIDTH = (width - (SPACING * 3)) / 2;
 
 const COLORS = {
-  primary: '#007AFF',      // Xanh iOS chuẩn
-  background: '#F8F9FA',   // Xám trắng rất nhạt (nền App)
-  card: '#FFFFFF',         // Trắng tinh (nền Card)
-  text: '#1A1A1A',         // Đen xám (Chữ chính)
-  subText: '#8E8E93',      // Xám nhạt (Chữ phụ)
-  danger: '#FF3B30',       // Đỏ (Nút xóa/Badge)
-  success: '#34C759',      // Xanh lá (Thành công)
-  inputBg: '#EEF1F4'       // Nền ô tìm kiếm
+  primary: '#007AFF',
+  background: '#F8F9FA',
+  card: '#FFFFFF',
+  text: '#1A1A1A',
+  subText: '#8E8E93',
+  danger: '#FF3B30',
+  success: '#34C759',
+  inputBg: '#EEF1F4'
 };
 
 export default function HomeScreen({ navigation }: any) {
@@ -41,7 +39,6 @@ export default function HomeScreen({ navigation }: any) {
   const [cartVisible, setCartVisible] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
 
-  // --- LOGIC LỜI CHÀO TỰ ĐỘNG ---
   const getGreetingTime = () => {
     const hours = new Date().getHours();
     if (hours >= 5 && hours < 11) return { text: 'Chào buổi sáng,', icon: 'sunny-outline', color: '#FDB813' }; // Sáng (5h-11h)
@@ -56,11 +53,9 @@ export default function HomeScreen({ navigation }: any) {
   useFocusEffect(React.useCallback(() => { fetchData(); }, []));
 
   useEffect(() => {
-    // 1. Realtime Supabase (Giữ nguyên)
-    const pSub = supabase.channel('h_prods').on('postgres_changes', { event: '*', schema: 'public', table: 'products' }, fetchData).subscribe();
-    const cSub = supabase.channel('h_cats').on('postgres_changes', { event: '*', schema: 'public', table: 'categories' }, fetchData).subscribe();
+    socket.on('product_changed', fetchData);
+    socket.on('category_changed', fetchData);
 
-    // 2. TỰ ĐỘNG LOAD LẠI KHI CÓ MẠNG (THÊM ĐOẠN NÀY)
     const unsubscribeNet = NetInfo.addEventListener(state => {
       if (state.isConnected) {
         fetchData();
@@ -68,9 +63,9 @@ export default function HomeScreen({ navigation }: any) {
     });
 
     return () => {
-      supabase.removeChannel(pSub);
-      supabase.removeChannel(cSub);
-      unsubscribeNet(); // Quan trọng: Hủy lắng nghe khi thoát màn hình
+      socket.off('product_changed', fetchData);
+      socket.off('category_changed', fetchData);
+      unsubscribeNet();
     };
   }, []);
 
@@ -96,7 +91,6 @@ export default function HomeScreen({ navigation }: any) {
     });
   }, [products, selectedCat, searchText]);
 
-  // --- CART LOGIC ---
   const addToCart = (product: any) => {
     setCart(curr => {
       const existing = curr.find(i => i.id === product.id);
@@ -126,8 +120,6 @@ export default function HomeScreen({ navigation }: any) {
       { text: 'OK', onPress: async () => { await createInvoice(cart, totalAmount); setCart([]); Alert.alert("Thành công!"); } }
     ]);
   };
-
-  // --- RENDER ITEMS ---
 
   const renderCategory = ({ item }: { item: any }) => {
     const isSelected = selectedCat === item.id;
@@ -212,7 +204,7 @@ export default function HomeScreen({ navigation }: any) {
 
   return (
     <SafeAreaView style={styles.container} edges={['top', 'left', 'right', 'bottom']}>
-      <StatusBar style="dark" backgroundColor="white" />
+      <StatusBar style="dark" />
 
       {/* 1. HEADER HIỆN ĐẠI */}
       <View style={styles.header}>
@@ -346,30 +338,25 @@ export default function HomeScreen({ navigation }: any) {
   );
 }
 
-// --- STYLE SHEET ---
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.background },
 
-  // Header
   header: { paddingHorizontal: SPACING, paddingTop: 10, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   headerSub: { fontSize: 14, color: COLORS.subText },
   headerTitle: { fontSize: 24, fontWeight: '800', color: COLORS.text },
   dateBadge: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#FFF', paddingHorizontal: 10, paddingVertical: 5, borderRadius: 20, borderWidth: 1, borderColor: '#EEE' },
   dateText: { marginLeft: 5, fontSize: 12, fontWeight: '600', color: '#555', textTransform: 'capitalize' },
 
-  // Search
   searchContainer: { padding: SPACING, paddingBottom: 5 },
   searchBar: { flexDirection: 'row', backgroundColor: COLORS.inputBg, height: 46, borderRadius: 12, alignItems: 'center', paddingHorizontal: 15 },
   searchInput: { flex: 1, marginLeft: 10, fontSize: 16, color: COLORS.text },
 
-  // Categories
   catContainer: { marginTop: 10, marginBottom: 5 },
   catItem: { paddingHorizontal: 20, paddingVertical: 10, backgroundColor: '#FFF', borderRadius: 25, marginRight: 10, borderWidth: 1, borderColor: '#EEE' },
   catItemActive: { backgroundColor: COLORS.primary, borderColor: COLORS.primary, shadowColor: COLORS.primary, shadowOpacity: 0.3, shadowRadius: 5, shadowOffset: { width: 0, height: 3 }, elevation: 3 },
   catText: { fontSize: 14, fontWeight: '600', color: COLORS.subText },
   catTextActive: { color: '#FFF' },
 
-  // Product Card
   card: { width: ITEM_WIDTH, backgroundColor: COLORS.card, borderRadius: 16, marginBottom: SPACING, shadowColor: "#000", shadowOpacity: 0.05, shadowRadius: 10, shadowOffset: { width: 0, height: 5 }, elevation: 3, padding: 10 },
   cardImgPlaceholder: { width: '100%', aspectRatio: 1.2, backgroundColor: '#F0F4F8', borderRadius: 12, justifyContent: 'center', alignItems: 'center', marginBottom: 10 },
   productImage: { width: '100%', height: '100%' },
@@ -382,7 +369,6 @@ const styles = StyleSheet.create({
   badge: { position: 'absolute', top: -6, right: -6, backgroundColor: COLORS.danger, minWidth: 24, height: 24, borderRadius: 12, justifyContent: 'center', alignItems: 'center', borderWidth: 2, borderColor: '#FFF' },
   badgeText: { color: '#FFF', fontSize: 11, fontWeight: 'bold', paddingHorizontal: 4 },
 
-  // Floating Cart Bar (Home Screen)
   floatCartContainer: { position: 'absolute', bottom: 20, left: SPACING, right: SPACING },
   floatCartBtn: { backgroundColor: '#1A1A1A', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 12, paddingHorizontal: 16, borderRadius: 16, shadowColor: "#000", shadowOpacity: 0.2, shadowRadius: 10, elevation: 5 },
   floatCartLeft: { flexDirection: 'row', alignItems: 'center' },
@@ -393,17 +379,16 @@ const styles = StyleSheet.create({
   floatCartRight: { flexDirection: 'row', alignItems: 'center' },
   floatCartCheckout: { color: '#FFF', fontWeight: 'bold', fontSize: 14, marginRight: 4 },
 
-  // MODAL STYLES (New)
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.5)',
     justifyContent: 'flex-end'
   },
   modalContent: {
-    backgroundColor: '#F8F9FA', // Màu nền chung cho cả khối
+    backgroundColor: '#F8F9FA',
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
-    maxHeight: '85%', // Giới hạn chiều cao
+    maxHeight: '85%',
     width: '100%',
     shadowColor: "#000", shadowOpacity: 0.2, shadowRadius: 10, elevation: 10
   },
@@ -411,13 +396,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
     padding: SPACING,
     borderBottomWidth: 1, borderBottomColor: '#EEE',
-    backgroundColor: '#FFF', // Header nền trắng
-    borderTopLeftRadius: 24, borderTopRightRadius: 24 // Bo góc theo content
+    backgroundColor: '#FFF',
+    borderTopLeftRadius: 24, borderTopRightRadius: 24
   },
   modalTitle: { fontSize: 20, fontWeight: '800', color: COLORS.text },
   modalCloseBtn: { padding: 5 },
 
-  // Cart Item Row
   cartItemRow: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#FFF', padding: 12, borderRadius: 12, marginBottom: 12 },
   cartItemIcon: { width: 48, height: 48, borderRadius: 10, backgroundColor: '#F0F4F8', justifyContent: 'center', alignItems: 'center' },
   cartItemName: { fontSize: 16, fontWeight: '600', color: COLORS.text, marginBottom: 4 },

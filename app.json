@@ -1,17 +1,11 @@
 {
   "expo": {
     "name": "Grocery Store App",
-    "slug": "GroceryStoreApp",
+    "slug": "grocery-store-app",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/logo-app.png",
     "userInterfaceStyle": "light",
-    "newArchEnabled": true,
-    "splash": {
-      "image": "./assets/logo-app.png",
-      "resizeMode": "contain",
-      "backgroundColor": "#ffffff"
-    },
     "ios": {
       "supportsTablet": true
     },
@@ -20,7 +14,6 @@
         "foregroundImage": "./assets/logo-app.png",
         "backgroundColor": "#ffffff"
       },
-      "edgeToEdgeEnabled": true,
       "package": "com.huathai.GroceryStoreApp",
       "softwareKeyboardLayoutMode": "pan",
       "userInterfaceStyle": "light"
@@ -38,8 +31,16 @@
       [
         "expo-navigation-bar",
         {
-          "barStyle": "dark-content",
+          "style": "dark-content",
           "backgroundColor": "#FFFFFF"
+        }
+      ],
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/logo-app.png",
+          "resizeMode": "contain",
+          "backgroundColor": "#ffffff"
         }
       ]
     ]

@@ -1,23 +1,21 @@
 import { apiClient } from '../lib/apiClient';
 
-const mapId = (item: any) => ({ ...item, id: item._id });
-
 export const getCategories = async () => {
     const { data } = await apiClient.get('/categories');
-    return data.map(mapId);
+    return data;
 };
 
 export const addCategory = async (name: string) => {
     const { data } = await apiClient.post('/categories', { name });
-    return mapId(data);
+    return data;
 };
 
-export const updateCategory = async (id: string | number, name: string) => {
+export const updateCategory = async (id: string, name: string) => {
     const { data } = await apiClient.patch(`/categories/${id}`, { name });
-    return mapId(data);
+    return data;
 };
 
-export const deleteCategory = async (id: string | number) => {
+export const deleteCategory = async (id: string) => {
     await apiClient.delete(`/categories/${id}`);
 };
 
@@ -25,7 +23,6 @@ export const getProducts = async () => {
     const { data } = await apiClient.get('/products');
     return data.map((item: any) => ({
         ...item,
-        id: item._id,
         category_id: item.categoryId?._id || null,
         categories: item.categoryId ? { name: item.categoryId.name } : null
     }));
@@ -35,7 +32,7 @@ export const addProduct = async (productData: {
     name: string;
     price: number;
     unit: string;
-    category_id: string | number | null;
+    category_id: string | null;
 }) => {
     const payload = {
         name: productData.name,
@@ -44,21 +41,21 @@ export const addProduct = async (productData: {
         categoryId: productData.category_id,
     };
     const { data } = await apiClient.post('/products', payload);
-    return mapId(data);
+    return data;
 };
 
 export const updateProduct = async (
-    id: string | number,
-    updates: { name?: string; price?: number; unit?: string; category_id?: string | number | null }
+    id: string,
+    updates: { name?: string; price?: number; unit?: string; category_id?: string | null }
 ) => {
     const payload: any = { ...updates };
     if (updates.category_id !== undefined) payload.categoryId = updates.category_id;
 
     const { data } = await apiClient.patch(`/products/${id}`, payload);
-    return mapId(data);
+    return data;
 };
 
-export const deleteProduct = async (id: string | number) => {
+export const deleteProduct = async (id: string) => {
     await apiClient.delete(`/products/${id}`);
 };
 
@@ -66,7 +63,6 @@ export const getInvoices = async () => {
     const { data } = await apiClient.get('/invoices');
     return data.map((item: any) => ({
         ...item,
-        id: item._id,
         total_amount: item.totalAmount,
         created_at: item.createdAt,
         invoice_items: item.items.map((i: any) => ({
@@ -83,7 +79,7 @@ export const createInvoice = async (cartItems: any[], totalAmount: number) => {
         totalAmount,
         paymentMethod: 'Cash',
         items: cartItems.map(item => ({
-            productId: item.id,
+            productId: item._id,
             productName: item.name,
             unit: item.unit || 'Cái',
             quantity: item.quantity,
@@ -95,6 +91,6 @@ export const createInvoice = async (cartItems: any[], totalAmount: number) => {
     return data._id;
 };
 
-export const deleteInvoice = async (id: string | number) => {
+export const deleteInvoice = async (id: string) => {
     await apiClient.delete(`/invoices/${id}`);
 };

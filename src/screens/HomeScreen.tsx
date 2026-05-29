@@ -33,7 +33,7 @@ export default function HomeScreen({ navigation }: any) {
   const insets = useSafeAreaInsets();
   const [products, setProducts] = useState<any[]>([]);
   const [categories, setCategories] = useState<any[]>([]);
-  const [selectedCat, setSelectedCat] = useState<number | null>(null);
+  const [selectedCat, setSelectedCat] = useState<string | null>(null);
   const [searchText, setSearchText] = useState('');
   const [cart, setCart] = useState<any[]>([]);
   const [cartVisible, setCartVisible] = useState(false);
@@ -41,10 +41,10 @@ export default function HomeScreen({ navigation }: any) {
 
   const getGreetingTime = () => {
     const hours = new Date().getHours();
-    if (hours >= 5 && hours < 11) return { text: 'Chào buổi sáng,', icon: 'sunny-outline', color: '#FDB813' }; // Sáng (5h-11h)
-    if (hours >= 11 && hours < 14) return { text: 'Chào buổi trưa,', icon: 'sunny', color: '#FF9800' };         // Trưa (11h-14h)
-    if (hours >= 14 && hours < 18) return { text: 'Chào buổi chiều,', icon: 'partly-sunny-outline', color: '#FF5722' }; // Chiều (14h-18h)
-    return { text: 'Chào buổi tối,', icon: 'moon-outline', color: '#673AB7' };                                  // Tối
+    if (hours >= 5 && hours < 11) return { text: 'Chào buổi sáng,', icon: 'sunny-outline', color: '#FDB813' };
+    if (hours >= 11 && hours < 14) return { text: 'Chào buổi trưa,', icon: 'sunny', color: '#FF9800' };
+    if (hours >= 14 && hours < 18) return { text: 'Chào buổi chiều,', icon: 'partly-sunny-outline', color: '#FF5722' };
+    return { text: 'Chào buổi tối,', icon: 'moon-outline', color: '#673AB7' };
   };
 
   const greeting = getGreetingTime();
@@ -93,21 +93,21 @@ export default function HomeScreen({ navigation }: any) {
 
   const addToCart = (product: any) => {
     setCart(curr => {
-      const existing = curr.find(i => i.id === product.id);
-      if (existing) return curr.map(i => i.id === product.id ? { ...i, quantity: i.quantity + 1 } : i);
+      const existing = curr.find(i => i._id === product._id);
+      if (existing) return curr.map(i => i._id === product._id ? { ...i, quantity: i.quantity + 1 } : i);
       return [...curr, { ...product, quantity: 1 }];
     });
   };
 
-  const decreaseQuantity = (productId: number) => {
+  const decreaseQuantity = (productId: string) => {
     setCart(curr => {
-      const existing = curr.find(i => i.id === productId);
-      if (existing?.quantity === 1) return curr.filter(i => i.id !== productId);
-      return curr.map(i => i.id === productId ? { ...i, quantity: i.quantity - 1 } : i);
+      const existing = curr.find(i => i._id === productId);
+      if (existing?.quantity === 1) return curr.filter(i => i._id !== productId);
+      return curr.map(i => i._id === productId ? { ...i, quantity: i.quantity - 1 } : i);
     });
   };
 
-  const removeItem = (productId: number) => setCart(curr => curr.filter(i => i.id !== productId));
+  const removeItem = (productId: string) => setCart(curr => curr.filter(i => i._id !== productId));
 
   const totalAmount = useMemo(() => cart.reduce((sum, item) => sum + (item.price * item.quantity), 0), [cart]);
   const totalQuantity = useMemo(() => cart.reduce((sum, item) => sum + item.quantity, 0), [cart]);
@@ -122,11 +122,11 @@ export default function HomeScreen({ navigation }: any) {
   };
 
   const renderCategory = ({ item }: { item: any }) => {
-    const isSelected = selectedCat === item.id;
+    const isSelected = selectedCat === item._id;
     return (
       <TouchableOpacity
         style={[styles.catItem, isSelected && styles.catItemActive]}
-        onPress={() => setSelectedCat(item.id)}
+        onPress={() => setSelectedCat(item._id)}
       >
         <Text style={[styles.catText, isSelected && styles.catTextActive]}>
           {item.name}
@@ -136,7 +136,7 @@ export default function HomeScreen({ navigation }: any) {
   };
 
   const renderProduct = ({ item }: { item: any }) => {
-    const qty = cart.find(c => c.id === item.id)?.quantity || 0;
+    const qty = cart.find(c => c._id === item._id)?.quantity || 0;
     return (
       <TouchableOpacity
         style={styles.card}
@@ -189,7 +189,7 @@ export default function HomeScreen({ navigation }: any) {
       </View>
 
       <View style={styles.cartActions}>
-        <TouchableOpacity onPress={() => decreaseQuantity(item.id)} style={styles.qtyBtn}>
+        <TouchableOpacity onPress={() => decreaseQuantity(item._id)} style={styles.qtyBtn}>
           <Ionicons name="remove" size={20} color={COLORS.text} />
         </TouchableOpacity>
 
@@ -248,7 +248,7 @@ export default function HomeScreen({ navigation }: any) {
           data={categories}
           horizontal
           showsHorizontalScrollIndicator={false}
-          keyExtractor={i => i.id ? i.id.toString() : 'all'}
+          keyExtractor={i => i._id ? i._id.toString() : 'all'}
           renderItem={renderCategory}
           contentContainerStyle={{ paddingHorizontal: SPACING }}
         />
@@ -257,7 +257,7 @@ export default function HomeScreen({ navigation }: any) {
       {/* 4. PRODUCT GRID */}
       <FlatList
         data={filteredProducts}
-        keyExtractor={i => i.id.toString()}
+        keyExtractor={i => i._id.toString()}
         renderItem={renderProduct}
         numColumns={COLUMN_COUNT}
         columnWrapperStyle={{ justifyContent: 'space-between' }}
@@ -315,7 +315,7 @@ export default function HomeScreen({ navigation }: any) {
             {/* List sản phẩm trong giỏ */}
             <FlatList
               data={cart}
-              keyExtractor={item => item.id.toString()}
+              keyExtractor={item => item._id.toString()}
               contentContainerStyle={{ padding: SPACING }}
               renderItem={renderCartItem}
               ListFooterComponent={<View style={{ height: 20 }} />}

@@ -14,12 +14,17 @@ import { getInvoices, deleteInvoice } from '../services/productService';
 import { formatCurrency, formatDate } from '../utils/format';
 import { socket } from '../lib/socket';
 
+import { AuthContext } from '../context/AuthContext';
+import { useContext } from 'react';
+
 export default function HistoryScreen() {
   const [invoices, setInvoices] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
 
   const [selectedInvoice, setSelectedInvoice] = useState<any | null>(null);
   const [detailVisible, setDetailVisible] = useState(false);
+
+  const { logout } = useContext(AuthContext);
 
   useFocusEffect(
     React.useCallback(() => {
@@ -92,7 +97,7 @@ export default function HistoryScreen() {
     setDetailVisible(true);
   };
 
-  const handleDeleteInvoice = (id: number) => {
+  const handleDeleteInvoice = (id: string) => {
     Alert.alert(
       'Xóa hóa đơn này?',
       'Doanh thu sẽ bị trừ đi.',
@@ -150,14 +155,21 @@ export default function HistoryScreen() {
 
       {/* Header Thống Kê Hôm Nay */}
       <View style={styles.header}>
-        <Text style={styles.headerLabel}>Doanh thu hôm nay</Text>
-        <Text style={styles.headerValue}>{formatCurrency(todayRevenue)}</Text>
+        <View style={{ alignItems: 'center' }}>
+          <Text style={styles.headerLabel}>Doanh thu hôm nay</Text>
+          <Text style={styles.headerValue}>{formatCurrency(todayRevenue)}</Text>
+        </View>
+
+        {/* Nút Đăng xuất */}
+        <TouchableOpacity style={{ position: 'absolute', right: 20, top: 30 }} onPress={logout}>
+          <Ionicons name="log-out-outline" size={28} color="white" />
+        </TouchableOpacity>
       </View>
 
       <View style={styles.body}>
         <SectionList
           sections={sections}
-          keyExtractor={(item) => item.id.toString()}
+          keyExtractor={(item) => item._id.toString()}
           renderItem={renderItem}
           renderSectionHeader={renderSectionHeader}
           contentContainerStyle={{ paddingBottom: 20 }}
@@ -195,7 +207,7 @@ export default function HistoryScreen() {
               <Text style={styles.modalTitle}>Chi tiết đơn hàng</Text>
               <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                 {selectedInvoice && (
-                  <TouchableOpacity onPress={() => handleDeleteInvoice(selectedInvoice.id)} style={{ marginRight: 20 }}>
+                  <TouchableOpacity onPress={() => handleDeleteInvoice(selectedInvoice._id)} style={{ marginRight: 20 }}>
                     <Ionicons name="trash-outline" size={24} color="#FF6B6B" />
                   </TouchableOpacity>
                 )}

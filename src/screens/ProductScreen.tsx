@@ -21,19 +21,19 @@ export default function ProductScreen() {
   const [categories, setCategories] = useState<any[]>([]);
 
   const [searchText, setSearchText] = useState('');
-  const [filterCatId, setFilterCatId] = useState<number | null>(null);
+  const [filterCatId, setFilterCatId] = useState<string | null>(null);
 
   const [prodModalVisible, setProdModalVisible] = useState(false);
   const [prodName, setProdName] = useState('');
   const [prodPrice, setProdPrice] = useState('');
   const [prodUnit, setProdUnit] = useState('Cái');
-  const [selectedCat, setSelectedCat] = useState<number | null>(null);
-  const [editingProdId, setEditingProdId] = useState<number | null>(null);
+  const [selectedCat, setSelectedCat] = useState<string | null>(null);
+  const [editingProdId, setEditingProdId] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
 
   const [catModalVisible, setCatModalVisible] = useState(false);
   const [catName, setCatName] = useState('');
-  const [editingCatId, setEditingCatId] = useState<number | null>(null);
+  const [editingCatId, setEditingCatId] = useState<string | null>(null);
 
   useEffect(() => {
     fetchData();
@@ -83,13 +83,13 @@ export default function ProductScreen() {
     setEditingProdId(null);
     setProdName(''); setProdPrice(''); setProdUnit('Cái');
     if (filterCatId) setSelectedCat(filterCatId);
-    else if (categories.length > 0) setSelectedCat(categories[0].id);
+    else if (categories.length > 0) setSelectedCat(categories[0]._id);
 
     setProdModalVisible(true);
   };
 
   const openEditProduct = (item: any) => {
-    setEditingProdId(item.id);
+    setEditingProdId(item._id);
     setProdName(item.name);
     setProdPrice(item.price.toString());
     setProdUnit(item.unit);
@@ -117,7 +117,7 @@ export default function ProductScreen() {
     }
   };
 
-  const handleDeleteProduct = (id: number) => {
+  const handleDeleteProduct = (id: string) => {
     Alert.alert('Xóa món này?', '', [
       { text: 'Hủy', style: 'cancel' },
       {
@@ -141,8 +141,8 @@ export default function ProductScreen() {
     } catch (error) { Alert.alert('Lỗi', 'Không lưu được danh mục'); }
   };
 
-  const handleEditCategory = (item: any) => { setCatName(item.name); setEditingCatId(item.id); };
-  const handleDeleteCategory = (id: number) => {
+  const handleEditCategory = (item: any) => { setCatName(item.name); setEditingCatId(item._id); };
+  const handleDeleteCategory = (id: string) => {
     Alert.alert('Xóa danh mục?', 'Sản phẩm sẽ mất danh mục này.', [
       { text: 'Hủy', style: 'cancel' },
       {
@@ -187,20 +187,20 @@ export default function ProductScreen() {
         <FlatList
           horizontal
           data={[{ id: null, name: 'Tất cả' }, ...categories]}
-          keyExtractor={item => item.id ? item.id.toString() : 'all'}
+          keyExtractor={item => item._id ? item._id.toString() : 'all'}
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={{ paddingVertical: 10 }}
           renderItem={({ item }) => (
             <TouchableOpacity
               style={[
                 styles.filterChip,
-                filterCatId === item.id && styles.filterChipActive
+                filterCatId === item._id && styles.filterChipActive
               ]}
-              onPress={() => setFilterCatId(item.id)}
+              onPress={() => setFilterCatId(item._id)}
             >
               <Text style={[
                 styles.filterText,
-                filterCatId === item.id && styles.filterTextActive
+                filterCatId === item._id && styles.filterTextActive
               ]}>{item.name}</Text>
             </TouchableOpacity>
           )}
@@ -210,7 +210,7 @@ export default function ProductScreen() {
       {/* --- DANH SÁCH SẢN PHẨM --- */}
       <FlatList
         data={filteredList}
-        keyExtractor={(item) => item.id.toString()}
+        keyExtractor={(item) => item._id.toString()}
         contentContainerStyle={{ paddingBottom: 80 }}
         ListEmptyComponent={
           <Text style={{ textAlign: 'center', marginTop: 30, color: 'gray' }}>Không tìm thấy sản phẩm nào</Text>
@@ -247,7 +247,7 @@ export default function ProductScreen() {
             </View>
             <View style={{ alignItems: 'flex-end' }}>
               <Text style={styles.itemPrice}>{item.price.toLocaleString('vi-VN')} đ</Text>
-              <TouchableOpacity onPress={() => handleDeleteProduct(item.id)} style={{ padding: 5 }}>
+              <TouchableOpacity onPress={() => handleDeleteProduct(item._id)} style={{ padding: 5 }}>
                 <Ionicons name="trash-outline" size={20} color="red" />
               </TouchableOpacity>
             </View>
@@ -277,7 +277,7 @@ export default function ProductScreen() {
                 <Text style={styles.label}>Chọn danh mục:</Text>
                 <View style={styles.pickerContainer}>
                   <Picker selectedValue={selectedCat} onValueChange={(v) => setSelectedCat(v)}>
-                    {categories.map((c) => <Picker.Item key={c.id} label={c.name} value={c.id} />)}
+                    {categories.map((c) => <Picker.Item key={c._id} label={c.name} value={c._id} />)}
                   </Picker>
                 </View>
                 <View style={styles.modalButtons}>
@@ -307,12 +307,12 @@ export default function ProductScreen() {
                   <TouchableOpacity style={styles.addCatBtn} onPress={handleSaveCategory}><Ionicons name={editingCatId ? "checkmark" : "add"} size={24} color="white" /></TouchableOpacity>
                   {editingCatId && (<TouchableOpacity style={[styles.addCatBtn, { backgroundColor: 'gray', marginLeft: 5 }]} onPress={() => { setEditingCatId(null); setCatName(''); }}><Ionicons name="close" size={24} color="white" /></TouchableOpacity>)}
                 </View>
-                <FlatList data={categories} keyExtractor={item => item.id.toString()} renderItem={({ item }) => (
+                <FlatList data={categories} keyExtractor={item => item._id.toString()} renderItem={({ item }) => (
                   <View style={styles.catItemRow}>
                     <Text style={styles.catItemText}>{item.name}</Text>
                     <View style={{ flexDirection: 'row' }}>
                       <TouchableOpacity onPress={() => handleEditCategory(item)} style={{ padding: 8 }}><Ionicons name="pencil" size={20} color="#2F95DC" /></TouchableOpacity>
-                      <TouchableOpacity onPress={() => handleDeleteCategory(item.id)} style={{ padding: 8 }}><Ionicons name="trash-outline" size={20} color="red" /></TouchableOpacity>
+                      <TouchableOpacity onPress={() => handleDeleteCategory(item._id)} style={{ padding: 8 }}><Ionicons name="trash-outline" size={20} color="red" /></TouchableOpacity>
                     </View>
                   </View>
                 )}

@@ -19,26 +19,44 @@ export const deleteCategory = async (id: string) => {
     await apiClient.delete(`/categories/${id}`);
 };
 
-export const getProducts = async () => {
-    const { data } = await apiClient.get('/products');
-    return data.map((item: any) => ({
+export const getProducts = async (page = 1, limit = 20, search = '', categoryId: string | null = null) => {
+    const params: any = { page, limit };
+    if (search) params.search = search;
+    if (categoryId) params.categoryId = categoryId;
+
+    const { data: response } = await apiClient.get('/products', { params });
+
+    const mappedData = response.data.map((item: any) => ({
         ...item,
         category_id: item.categoryId?._id || null,
         categories: item.categoryId ? { name: item.categoryId.name } : null
     }));
+
+    return {
+        ...response,
+        data: mappedData
+    };
 };
 
 export const addProduct = async (productData: {
     name: string;
     price: number;
+    costPrice: number;
+    stock: number;
+    sku: string;
     unit: string;
     category_id: string | null;
+    imageUrl: string;
 }) => {
     const payload = {
         name: productData.name,
         price: productData.price,
+        costPrice: productData.costPrice,
+        stock: productData.stock,
+        sku: productData.sku,
         unit: productData.unit,
         categoryId: productData.category_id,
+        imageUrl: productData.imageUrl
     };
     const { data } = await apiClient.post('/products', payload);
     return data;
@@ -46,7 +64,7 @@ export const addProduct = async (productData: {
 
 export const updateProduct = async (
     id: string,
-    updates: { name?: string; price?: number; unit?: string; category_id?: string | null }
+    updates: { name?: string; price?: number; costPrice?: number; stock?: number; sku?: string; unit?: string; category_id?: string | null; imageUrl?: string }
 ) => {
     const payload: any = { ...updates };
     if (updates.category_id !== undefined) payload.categoryId = updates.category_id;
@@ -93,4 +111,39 @@ export const createInvoice = async (cartItems: any[], totalAmount: number) => {
 
 export const deleteInvoice = async (id: string) => {
     await apiClient.delete(`/invoices/${id}`);
+};
+
+export const uploadImageToCloudinary = async (imageUri: string) => {
+    const { data: signData } = await apiClient.get('/products/upload-signature');
+
+    const formData = new FormData();
+    formData.append('file', {
+        uri: imageUri,
+        type: 'image/jpeg',
+        name: `upload_${Date.now()}.jpg`,
+    } as any);
+
+    formData.append('api_key', signData.apiKey);
+    formData.append('timestamp', signData.timestamp);
+    formData.append('signature', signData.signature);
+
+    const apiUrl = `https://api.cloudinary.com/v1_1/${signData.cloudName}/image/upload`;
+
+    try {
+        const response = await fetch(apiUrl, {
+            method: 'POST',
+            body: formData,
+            headers: { 'Content-Type': 'multipart/form-data' },
+        });
+        const data = await response.json();
+
+        if (data.error) {
+            throw new Error(data.error.message);
+        }
+
+        return data.secure_url;
+    } catch (error) {
+        console.error('Lỗi upload ảnh:', error);
+        throw error;
+    }
 };

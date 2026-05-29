@@ -2,7 +2,6 @@ import React from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
 
-// Import các màn hình
 import HomeScreen from '../screens/HomeScreen';
 import ProductScreen from '../screens/ProductScreen';
 import HistoryScreen from '../screens/HistoryScreen';

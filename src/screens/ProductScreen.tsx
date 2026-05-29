@@ -14,57 +14,43 @@ import {
   getProducts, getCategories, addProduct, deleteProduct, updateProduct,
   addCategory, updateCategory, deleteCategory
 } from '../services/productService';
-import { supabase } from '../lib/supabase';
+import { socket } from '../lib/socket';
 
 export default function ProductScreen() {
   const [products, setProducts] = useState<any[]>([]);
   const [categories, setCategories] = useState<any[]>([]);
 
-  // --- STATE TÌM KIẾM & LỌC (MỚI) ---
   const [searchText, setSearchText] = useState('');
-  const [filterCatId, setFilterCatId] = useState<number | null>(null); // null = Hiện tất cả
+  const [filterCatId, setFilterCatId] = useState<string | null>(null);
 
-  // --- STATE MODAL SẢN PHẨM ---
   const [prodModalVisible, setProdModalVisible] = useState(false);
   const [prodName, setProdName] = useState('');
   const [prodPrice, setProdPrice] = useState('');
   const [prodUnit, setProdUnit] = useState('Cái');
-  const [selectedCat, setSelectedCat] = useState<number | null>(null); // Dùng cho Modal
-  const [editingProdId, setEditingProdId] = useState<number | null>(null);
+  const [selectedCat, setSelectedCat] = useState<string | null>(null);
+  const [editingProdId, setEditingProdId] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
 
-  // --- STATE MODAL DANH MỤC ---
   const [catModalVisible, setCatModalVisible] = useState(false);
   const [catName, setCatName] = useState('');
-  const [editingCatId, setEditingCatId] = useState<number | null>(null);
+  const [editingCatId, setEditingCatId] = useState<string | null>(null);
 
   useEffect(() => {
     fetchData();
 
-    // --- A. LOGIC REALTIME (CŨ) ---
-    const productSub = supabase
-      .channel('prods_realtime_v2')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'products' }, fetchData)
-      .subscribe();
+    socket.on('product_changed', fetchData);
+    socket.on('category_changed', fetchData);
 
-    const catSub = supabase
-      .channel('cats_realtime_v2')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'categories' }, fetchData)
-      .subscribe();
-
-    // --- B. LOGIC TỰ LOAD KHI CÓ MẠNG (MỚI) ---
     const unsubscribeNet = NetInfo.addEventListener(state => {
       if (state.isConnected) {
-        // console.log('ProductScreen: Có mạng lại'); // Bỏ comment nếu muốn test
         fetchData();
       }
     });
 
     return () => {
-      // Hủy đăng ký tất cả khi thoát màn hình
-      supabase.removeChannel(productSub);
-      supabase.removeChannel(catSub);
-      unsubscribeNet(); // <--- Quan trọng
+      socket.off('product_changed', fetchData);
+      socket.off('category_changed', fetchData);
+      unsubscribeNet();
     };
   }, []);
 
@@ -80,35 +66,30 @@ export default function ProductScreen() {
 
   const onRefresh = async () => {
     setRefreshing(true);
-    await fetchData(); // Đợi tải xong dữ liệu
-    setRefreshing(false); // Tắt vòng quay
+    await fetchData();
+    setRefreshing(false);
   };
 
-  // --- LOGIC LỌC DANH SÁCH (MỚI - QUAN TRỌNG) ---
   const filteredList = useMemo(() => {
     return products.filter(p => {
-      // 1. Lọc theo tên (không phân biệt hoa thường)
       const matchName = p.name.toLowerCase().includes(searchText.toLowerCase());
-      // 2. Lọc theo danh mục
       const matchCat = filterCatId === null || p.category_id === filterCatId;
 
       return matchName && matchCat;
     });
   }, [products, searchText, filterCatId]);
 
-  // --- CÁC HÀM XỬ LÝ CŨ (GIỮ NGUYÊN) ---
   const openAddProduct = () => {
     setEditingProdId(null);
     setProdName(''); setProdPrice(''); setProdUnit('Cái');
-    // Mặc định chọn danh mục đầu tiên hoặc danh mục đang lọc
     if (filterCatId) setSelectedCat(filterCatId);
-    else if (categories.length > 0) setSelectedCat(categories[0].id);
+    else if (categories.length > 0) setSelectedCat(categories[0]._id);
 
     setProdModalVisible(true);
   };
 
   const openEditProduct = (item: any) => {
-    setEditingProdId(item.id);
+    setEditingProdId(item._id);
     setProdName(item.name);
     setProdPrice(item.price.toString());
     setProdUnit(item.unit);
@@ -136,7 +117,7 @@ export default function ProductScreen() {
     }
   };
 
-  const handleDeleteProduct = (id: number) => {
+  const handleDeleteProduct = (id: string) => {
     Alert.alert('Xóa món này?', '', [
       { text: 'Hủy', style: 'cancel' },
       {
@@ -160,8 +141,8 @@ export default function ProductScreen() {
     } catch (error) { Alert.alert('Lỗi', 'Không lưu được danh mục'); }
   };
 
-  const handleEditCategory = (item: any) => { setCatName(item.name); setEditingCatId(item.id); };
-  const handleDeleteCategory = (id: number) => {
+  const handleEditCategory = (item: any) => { setCatName(item.name); setEditingCatId(item._id); };
+  const handleDeleteCategory = (id: string) => {
     Alert.alert('Xóa danh mục?', 'Sản phẩm sẽ mất danh mục này.', [
       { text: 'Hủy', style: 'cancel' },
       {
@@ -175,10 +156,9 @@ export default function ProductScreen() {
     ]);
   };
 
-  // --- GIAO DIỆN ---
   return (
     <SafeAreaView style={styles.container} edges={['top', 'left', 'right', 'bottom']}>
-      <StatusBar style="dark" backgroundColor="white" />
+      <StatusBar style="dark" />
 
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Kho Hàng ({filteredList.length})</Text>
@@ -207,20 +187,20 @@ export default function ProductScreen() {
         <FlatList
           horizontal
           data={[{ id: null, name: 'Tất cả' }, ...categories]}
-          keyExtractor={item => item.id ? item.id.toString() : 'all'}
+          keyExtractor={item => item._id ? item._id.toString() : 'all'}
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={{ paddingVertical: 10 }}
           renderItem={({ item }) => (
             <TouchableOpacity
               style={[
                 styles.filterChip,
-                filterCatId === item.id && styles.filterChipActive
+                filterCatId === item._id && styles.filterChipActive
               ]}
-              onPress={() => setFilterCatId(item.id)}
+              onPress={() => setFilterCatId(item._id)}
             >
               <Text style={[
                 styles.filterText,
-                filterCatId === item.id && styles.filterTextActive
+                filterCatId === item._id && styles.filterTextActive
               ]}>{item.name}</Text>
             </TouchableOpacity>
           )}
@@ -230,7 +210,7 @@ export default function ProductScreen() {
       {/* --- DANH SÁCH SẢN PHẨM --- */}
       <FlatList
         data={filteredList}
-        keyExtractor={(item) => item.id.toString()}
+        keyExtractor={(item) => item._id.toString()}
         contentContainerStyle={{ paddingBottom: 80 }}
         ListEmptyComponent={
           <Text style={{ textAlign: 'center', marginTop: 30, color: 'gray' }}>Không tìm thấy sản phẩm nào</Text>
@@ -267,7 +247,7 @@ export default function ProductScreen() {
             </View>
             <View style={{ alignItems: 'flex-end' }}>
               <Text style={styles.itemPrice}>{item.price.toLocaleString('vi-VN')} đ</Text>
-              <TouchableOpacity onPress={() => handleDeleteProduct(item.id)} style={{ padding: 5 }}>
+              <TouchableOpacity onPress={() => handleDeleteProduct(item._id)} style={{ padding: 5 }}>
                 <Ionicons name="trash-outline" size={20} color="red" />
               </TouchableOpacity>
             </View>
@@ -297,7 +277,7 @@ export default function ProductScreen() {
                 <Text style={styles.label}>Chọn danh mục:</Text>
                 <View style={styles.pickerContainer}>
                   <Picker selectedValue={selectedCat} onValueChange={(v) => setSelectedCat(v)}>
-                    {categories.map((c) => <Picker.Item key={c.id} label={c.name} value={c.id} />)}
+                    {categories.map((c) => <Picker.Item key={c._id} label={c.name} value={c._id} />)}
                   </Picker>
                 </View>
                 <View style={styles.modalButtons}>
@@ -327,12 +307,12 @@ export default function ProductScreen() {
                   <TouchableOpacity style={styles.addCatBtn} onPress={handleSaveCategory}><Ionicons name={editingCatId ? "checkmark" : "add"} size={24} color="white" /></TouchableOpacity>
                   {editingCatId && (<TouchableOpacity style={[styles.addCatBtn, { backgroundColor: 'gray', marginLeft: 5 }]} onPress={() => { setEditingCatId(null); setCatName(''); }}><Ionicons name="close" size={24} color="white" /></TouchableOpacity>)}
                 </View>
-                <FlatList data={categories} keyExtractor={item => item.id.toString()} renderItem={({ item }) => (
+                <FlatList data={categories} keyExtractor={item => item._id.toString()} renderItem={({ item }) => (
                   <View style={styles.catItemRow}>
                     <Text style={styles.catItemText}>{item.name}</Text>
                     <View style={{ flexDirection: 'row' }}>
                       <TouchableOpacity onPress={() => handleEditCategory(item)} style={{ padding: 8 }}><Ionicons name="pencil" size={20} color="#2F95DC" /></TouchableOpacity>
-                      <TouchableOpacity onPress={() => handleDeleteCategory(item.id)} style={{ padding: 8 }}><Ionicons name="trash-outline" size={20} color="red" /></TouchableOpacity>
+                      <TouchableOpacity onPress={() => handleDeleteCategory(item._id)} style={{ padding: 8 }}><Ionicons name="trash-outline" size={20} color="red" /></TouchableOpacity>
                     </View>
                   </View>
                 )}
@@ -353,7 +333,6 @@ const styles = StyleSheet.create({
   headerTitle: { fontSize: 20, fontWeight: 'bold' },
   iconBtn: { padding: 5, marginLeft: 15 },
 
-  // Search & Filter
   filterContainer: { backgroundColor: 'white', paddingBottom: 10, marginBottom: 5 },
   searchBox: {
     flexDirection: 'row', alignItems: 'center', backgroundColor: '#F0F2F5',
@@ -368,10 +347,9 @@ const styles = StyleSheet.create({
   filterText: { color: 'gray', fontWeight: '500' },
   filterTextActive: { color: '#2F95DC', fontWeight: 'bold' },
 
-  // ITEM CARD (Đã sửa để hiện ảnh đẹp hơn)
   itemCard: {
     flexDirection: 'row',
-    alignItems: 'center', // Căn giữa dọc
+    alignItems: 'center',
     backgroundColor: 'white',
     padding: 15,
     marginHorizontal: 15,
@@ -379,7 +357,6 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     elevation: 2
   },
-  // Style cho ảnh
   imgContainer: {
     width: 50, height: 50, borderRadius: 8, overflow: 'hidden',
     justifyContent: 'center', alignItems: 'center', backgroundColor: '#F0F4F8'
@@ -394,7 +371,6 @@ const styles = StyleSheet.create({
 
   fab: { position: 'absolute', right: 20, bottom: 20, backgroundColor: '#2F95DC', width: 60, height: 60, borderRadius: 30, justifyContent: 'center', alignItems: 'center', elevation: 5 },
 
-  // Modals
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', padding: 20 },
   modalContent: { backgroundColor: 'white', borderRadius: 15, padding: 20 },
   modalTitle: { fontSize: 18, fontWeight: 'bold', marginBottom: 15, textAlign: 'center' },

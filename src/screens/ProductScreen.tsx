@@ -83,10 +83,12 @@ export default function ProductScreen() {
     try {
       const res = await getProducts(pageNumber, 20, searchText, filterCatId);
 
+      const newData = res.data || [];
+
       if (isReset) {
-        setProducts(res.data);
+        setProducts(newData);
       } else {
-        setProducts(prev => [...prev, ...res.data]);
+        setProducts(prev => [...prev, ...newData]);
       }
 
       setPage(res.page);

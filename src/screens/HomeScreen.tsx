@@ -1,100 +1,142 @@
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import {
   View, Text, StyleSheet, FlatList, TouchableOpacity,
-  Dimensions, Alert, Modal, TextInput, RefreshControl, Image
+  Alert, Modal, TextInput, RefreshControl, Image, ActivityIndicator
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import NetInfo from '@react-native-community/netinfo';
 import { StatusBar } from 'expo-status-bar';
+import { CameraView, useCameraPermissions } from 'expo-camera';
 
 import { getProducts, getCategories, createInvoice } from '../services/productService';
 import { formatCurrency } from '../utils/format';
 import { socket } from '../lib/socket';
 
-const { width } = Dimensions.get('window');
 const SPACING = 16;
-const COLUMN_COUNT = 2;
-const ITEM_WIDTH = (width - (SPACING * 3)) / 2;
-
 const COLORS = {
-  primary: '#007AFF',
-  background: '#F8F9FA',
+  primary: '#4A72FF',
+  background: '#F5F7FA',
   card: '#FFFFFF',
-  text: '#1A1A1A',
+  text: '#1C1C1E',
   subText: '#8E8E93',
   danger: '#FF3B30',
   success: '#34C759',
-  inputBg: '#EEF1F4'
+  inputBg: '#FFFFFF',
+  borderColor: '#E5E5EA'
 };
 
 export default function HomeScreen({ navigation }: any) {
   const insets = useSafeAreaInsets();
+
   const [products, setProducts] = useState<any[]>([]);
   const [categories, setCategories] = useState<any[]>([]);
+  const [cart, setCart] = useState<any[]>([]);
+
   const [selectedCat, setSelectedCat] = useState<string | null>(null);
   const [searchText, setSearchText] = useState('');
-  const [cart, setCart] = useState<any[]>([]);
   const [cartVisible, setCartVisible] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
 
-  const getGreetingTime = () => {
-    const hours = new Date().getHours();
-    if (hours >= 5 && hours < 11) return { text: 'Chào buổi sáng,', icon: 'sunny-outline', color: '#FDB813' };
-    if (hours >= 11 && hours < 14) return { text: 'Chào buổi trưa,', icon: 'sunny', color: '#FF9800' };
-    if (hours >= 14 && hours < 18) return { text: 'Chào buổi chiều,', icon: 'partly-sunny-outline', color: '#FF5722' };
-    return { text: 'Chào buổi tối,', icon: 'moon-outline', color: '#673AB7' };
-  };
+  const [permission, requestPermission] = useCameraPermissions();
+  const [isScannerVisible, setIsScannerVisible] = useState(false);
+  const [scanned, setScanned] = useState(false);
 
-  const greeting = getGreetingTime();
-  const todayStr = new Date().toLocaleDateString('vi-VN', { weekday: 'long', day: '2-digit', month: '2-digit' });
-
-  useFocusEffect(React.useCallback(() => { fetchData(); }, []));
+  useFocusEffect(React.useCallback(() => { fetchData(1, true); }, []));
 
   useEffect(() => {
-    socket.on('product_changed', fetchData);
-    socket.on('category_changed', fetchData);
+    socket.on('product_changed', () => fetchData(1, true));
+    socket.on('category_changed', () => fetchData(1, true));
 
     const unsubscribeNet = NetInfo.addEventListener(state => {
-      if (state.isConnected) {
-        fetchData();
-      }
+      if (state.isConnected) fetchData(1, true);
     });
 
     return () => {
-      socket.off('product_changed', fetchData);
-      socket.off('category_changed', fetchData);
+      socket.off('product_changed');
+      socket.off('category_changed');
       unsubscribeNet();
     };
   }, []);
 
-  const fetchData = async () => {
+  useEffect(() => {
+    const delayDebounceFn = setTimeout(() => {
+      fetchData(1, true);
+    }, 500);
+    return () => clearTimeout(delayDebounceFn);
+  }, [searchText, selectedCat]);
+
+  const fetchData = async (page = 1, isReset = false) => {
     try {
-      const [prods, cats] = await Promise.all([getProducts(), getCategories()]);
-      setProducts(prods);
-      setCategories([{ id: null, name: 'Tất cả' }, ...cats]);
+      const [prodsRes, cats] = await Promise.all([
+        getProducts(page, 50, searchText, selectedCat),
+        getCategories()
+      ]);
+
+      const newData = prodsRes.data || [];
+      if (isReset) {
+        setProducts(newData);
+      } else {
+        setProducts(prev => [...prev, ...newData]);
+      }
+
+      if (isReset) {
+        setCategories([{ _id: null, name: 'Tất cả' }, ...cats]);
+      }
     } catch (e) { console.log('Lỗi tải dữ liệu'); }
   };
 
   const onRefresh = async () => {
     setRefreshing(true);
-    await fetchData();
+    await fetchData(1, true);
     setRefreshing(false);
   };
 
-  const filteredProducts = useMemo(() => {
-    return products.filter(p => {
-      const matchCat = selectedCat === null || p.category_id === selectedCat;
-      const matchName = p.name.toLowerCase().includes(searchText.toLowerCase());
-      return matchCat && matchName;
-    });
-  }, [products, selectedCat, searchText]);
+  const openScanner = async () => {
+    if (!permission?.granted) {
+      const { granted } = await requestPermission();
+      if (!granted) {
+        Alert.alert('Cấp quyền', 'Bạn cần cho phép dùng Camera để quét mã vạch.');
+        return;
+      }
+    }
+    setScanned(false);
+    setIsScannerVisible(true);
+  };
+
+  const handleBarCodeScanned = ({ type, data }: any) => {
+    setScanned(true);
+    setIsScannerVisible(false);
+
+    const foundProduct = products.find(p => p.sku === data);
+
+    if (foundProduct) {
+      if (foundProduct.stock > 0) {
+        addToCart(foundProduct);
+        Alert.alert('Thành công', `Đã thêm ${foundProduct.name} vào giỏ!`);
+      } else {
+        Alert.alert('Hết hàng', `${foundProduct.name} đã hết tồn kho!`);
+      }
+    } else {
+      Alert.alert('Lỗi', `Không tìm thấy sản phẩm có mã: ${data}`);
+    }
+  };
 
   const addToCart = (product: any) => {
+    if (product.stock <= 0) {
+      Alert.alert('Cảnh báo', 'Sản phẩm này đã hết hàng!');
+      return;
+    }
     setCart(curr => {
       const existing = curr.find(i => i._id === product._id);
-      if (existing) return curr.map(i => i._id === product._id ? { ...i, quantity: i.quantity + 1 } : i);
+      if (existing) {
+        if (existing.quantity >= product.stock) {
+          Alert.alert('Kho không đủ', `Chỉ còn ${product.stock} ${product.unit} trong kho.`);
+          return curr;
+        }
+        return curr.map(i => i._id === product._id ? { ...i, quantity: i.quantity + 1 } : i);
+      }
       return [...curr, { ...product, quantity: 1 }];
     });
   };
@@ -107,8 +149,6 @@ export default function HomeScreen({ navigation }: any) {
     });
   };
 
-  const removeItem = (productId: string) => setCart(curr => curr.filter(i => i._id !== productId));
-
   const totalAmount = useMemo(() => cart.reduce((sum, item) => sum + (item.price * item.quantity), 0), [cart]);
   const totalQuantity = useMemo(() => cart.reduce((sum, item) => sum + item.quantity, 0), [cart]);
 
@@ -117,216 +157,203 @@ export default function HomeScreen({ navigation }: any) {
     setCartVisible(false);
     Alert.alert('Chốt đơn?', `Tổng: ${formatCurrency(totalAmount)}`, [
       { text: 'Hủy', style: 'cancel', onPress: () => setCartVisible(true) },
-      { text: 'OK', onPress: async () => { await createInvoice(cart, totalAmount); setCart([]); Alert.alert("Thành công!"); } }
+      {
+        text: 'OK', onPress: async () => {
+          try {
+            await createInvoice(cart, totalAmount);
+            setCart([]);
+            Alert.alert("Thành công!", "Đã chốt đơn và trừ kho.");
+            fetchData(1, true);
+          } catch (e) {
+            Alert.alert("Lỗi", "Có lỗi xảy ra khi chốt đơn.");
+          }
+        }
+      }
     ]);
   };
 
-  const renderCategory = ({ item }: { item: any }) => {
-    const isSelected = selectedCat === item._id;
-    return (
-      <TouchableOpacity
-        style={[styles.catItem, isSelected && styles.catItemActive]}
-        onPress={() => setSelectedCat(item._id)}
-      >
-        <Text style={[styles.catText, isSelected && styles.catTextActive]}>
-          {item.name}
-        </Text>
-      </TouchableOpacity>
-    );
-  };
-
   const renderProduct = ({ item }: { item: any }) => {
-    const qty = cart.find(c => c._id === item._id)?.quantity || 0;
+    const qtyInCart = cart.find(c => c._id === item._id)?.quantity || 0;
+    const isOutOfStock = item.stock <= 0;
+
     return (
-      <TouchableOpacity
-        style={styles.card}
-        onPress={() => addToCart(item)}
-        activeOpacity={0.8}
-      >
-        {/* Placeholder Image đẹp hơn */}
+      <View style={styles.card}>
         <View style={styles.cardImgPlaceholder}>
-          {item.image_url ? (
-            <Image source={{ uri: item.image_url }} style={styles.productImage} resizeMode="cover" resizeMethod="resize" />
+          {item.imageUrl ? (
+            <Image source={{ uri: item.imageUrl }} style={styles.productImage} resizeMode="cover" />
           ) : (
             <Text style={styles.cardImgText}>{item.name.charAt(0).toUpperCase()}</Text>
           )}
         </View>
 
         <View style={styles.cardBody}>
-          <Text style={styles.cardName} numberOfLines={2}>{item.name}</Text>
-          <View style={styles.cardFooter}>
-            <Text style={styles.cardPrice}>{formatCurrency(item.price)}</Text>
-            {/* Nút cộng giả lập */}
-            <View style={styles.addBtn}>
-              <Ionicons name="add" size={16} color="white" />
-            </View>
+          <Text style={styles.cardName} numberOfLines={1}>{item.name}</Text>
+          <Text style={styles.cardSubText}>{item.stock} in Stock</Text>
+          <View style={styles.skuRow}>
+            <Ionicons name="barcode-outline" size={14} color={COLORS.subText} />
+            <Text style={styles.skuText}>{item.sku || 'N/A'}</Text>
           </View>
         </View>
 
-        {qty > 0 && (
-          <View style={styles.badge}>
-            <Text style={styles.badgeText}>{qty}</Text>
-          </View>
-        )}
-      </TouchableOpacity>
+        <View style={styles.cardRight}>
+          <Text style={styles.cardPrice}>{formatCurrency(item.price)}</Text>
+          <TouchableOpacity
+            style={[styles.addBtn, isOutOfStock && styles.addBtnDisabled]}
+            onPress={() => addToCart(item)}
+            disabled={isOutOfStock}
+          >
+            {qtyInCart > 0 ? (
+              <Text style={{ color: 'white', fontWeight: 'bold' }}>{qtyInCart}</Text>
+            ) : (
+              <Ionicons name="add" size={20} color="white" />
+            )}
+          </TouchableOpacity>
+        </View>
+      </View>
     );
   };
 
-  const renderCartItem = ({ item }: { item: any }) => (
-    <View style={styles.cartItemRow}>
-      <View style={styles.cartItemIcon}>
-        {/* Hiển thị ảnh nhỏ trong giỏ hàng */}
-        {item.image_url ? (
-          <Image source={{ uri: item.image_url }} style={{ width: '100%', height: '100%', borderRadius: 10 }} resizeMode="cover" />
-        ) : (
-          <Text style={{ fontSize: 18, fontWeight: 'bold', color: COLORS.primary }}>{item.name.charAt(0).toUpperCase()}</Text>
-        )}
-      </View>
-
-      <View style={{ flex: 1, paddingHorizontal: 12 }}>
-        <Text style={styles.cartItemName} numberOfLines={1}>{item.name}</Text>
-        <Text style={styles.cartItemPrice}>{formatCurrency(item.price)}</Text>
-      </View>
-
-      <View style={styles.cartActions}>
-        <TouchableOpacity onPress={() => decreaseQuantity(item._id)} style={styles.qtyBtn}>
-          <Ionicons name="remove" size={20} color={COLORS.text} />
-        </TouchableOpacity>
-
-        <Text style={styles.qtyValue}>{item.quantity}</Text>
-
-        <TouchableOpacity onPress={() => addToCart(item)} style={styles.qtyBtn}>
-          <Ionicons name="add" size={20} color={COLORS.text} />
-        </TouchableOpacity>
-      </View>
-    </View>
-  );
-
   return (
-    <SafeAreaView style={styles.container} edges={['top', 'left', 'right', 'bottom']}>
+    <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
       <StatusBar style="dark" />
 
-      {/* 1. HEADER HIỆN ĐẠI */}
+      {/* HEADER THEO MOCKUP */}
       <View style={styles.header}>
-        <View>
-          {/* Sửa dòng này: Dùng greeting.text thay vì chữ cứng */}
-          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-            <Text style={styles.headerSub}>{greeting.text}</Text>
-            {/* Thêm cái icon nhỏ xinh bên cạnh */}
-            <Ionicons name={greeting.icon as any} size={16} color={greeting.color} style={{ marginLeft: 5 }} />
-          </View>
-
-          <Text style={styles.headerTitle}>Grocery Store App</Text>
-        </View>
-        <View style={styles.dateBadge}>
-          <Ionicons name="calendar-outline" size={14} color="#555" />
-          <Text style={styles.dateText}>{todayStr}</Text>
-        </View>
+        <Text style={styles.headerTitle}>Bán Hàng</Text>
       </View>
 
-      {/* 2. SEARCH BAR */}
       <View style={styles.searchContainer}>
         <View style={styles.searchBar}>
           <Ionicons name="search" size={20} color="#999" />
           <TextInput
             style={styles.searchInput}
-            placeholder="Tìm kiếm món hàng..."
+            placeholder="Tìm kiếm..."
             value={searchText}
             onChangeText={setSearchText}
           />
-          {searchText ? (
+          {searchText !== '' && (
             <TouchableOpacity onPress={() => setSearchText('')}>
               <Ionicons name="close-circle" size={18} color="#999" />
             </TouchableOpacity>
-          ) : null}
+          )}
         </View>
+        <TouchableOpacity style={styles.filterBtn}>
+          <Ionicons name="options-outline" size={22} color={COLORS.text} />
+        </TouchableOpacity>
       </View>
 
-      {/* 3. CATEGORIES (STYLE MỚI) */}
-      <View style={styles.catContainer}>
+      {/* CATEGORY (Tùy chọn hiển thị ngang hoặc ẩn đi nếu giống mockup, ở đây giữ lại để tiện thao tác) */}
+      <View style={{ paddingHorizontal: SPACING, marginBottom: 10 }}>
         <FlatList
-          data={categories}
           horizontal
           showsHorizontalScrollIndicator={false}
+          data={categories}
           keyExtractor={i => i._id ? i._id.toString() : 'all'}
-          renderItem={renderCategory}
-          contentContainerStyle={{ paddingHorizontal: SPACING }}
+          renderItem={({ item }) => {
+            const isSelected = selectedCat === item._id;
+            return (
+              <TouchableOpacity
+                style={[styles.catChip, isSelected && styles.catChipActive]}
+                onPress={() => setSelectedCat(item._id)}
+              >
+                <Text style={[styles.catChipText, isSelected && styles.catChipTextActive]}>{item.name}</Text>
+              </TouchableOpacity>
+            )
+          }}
         />
       </View>
 
-      {/* 4. PRODUCT GRID */}
+      <View style={styles.listHeaderRow}>
+        <Text style={styles.listHeaderTitle}>Sản phẩm</Text>
+        <Text style={styles.listHeaderSubtitle}>Xem tất cả</Text>
+      </View>
+
+      {/* PRODUCT LIST (DẠNG 1 CỘT GIỐNG MOCKUP) */}
       <FlatList
-        data={filteredProducts}
+        data={products}
         keyExtractor={i => i._id.toString()}
         renderItem={renderProduct}
-        numColumns={COLUMN_COUNT}
-        columnWrapperStyle={{ justifyContent: 'space-between' }}
-        contentContainerStyle={{ padding: SPACING, paddingBottom: 100 }}
+        contentContainerStyle={{ paddingHorizontal: SPACING, paddingBottom: 120 }}
         showsVerticalScrollIndicator={false}
-        refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={onRefresh}
-            colors={['#007AFF']}
-            tintColor="#007AFF"
-          />
-        }
-        initialNumToRender={8}
-        maxToRenderPerBatch={4}
-        windowSize={5}
-        removeClippedSubviews={true}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[COLORS.primary]} />}
+        ListEmptyComponent={<Text style={{ textAlign: 'center', marginTop: 50, color: 'gray' }}>Không tìm thấy sản phẩm</Text>}
       />
 
-      {/* 5. FLOATING CART (THANH TRÔI) */}
+      {/* FAB SCANNER (Cực giống bản thiết kế) */}
+      <TouchableOpacity style={styles.fabScanner} onPress={openScanner}>
+        <Ionicons name="scan-outline" size={28} color="white" />
+      </TouchableOpacity>
+
+      {/* NÚT THANH TOÁN (CART) MỚI */}
       {cart.length > 0 && (
-        <View style={styles.floatCartContainer}>
-          <TouchableOpacity style={styles.floatCartBtn} onPress={() => setCartVisible(true)}>
-            <View style={styles.floatCartLeft}>
-              <View style={styles.floatCartBadge}>
-                <Text style={styles.floatCartBadgeText}>{totalQuantity}</Text>
-              </View>
-              <View>
-                <Text style={styles.floatCartLabel}>Tổng thanh toán</Text>
-                <Text style={styles.floatCartValue}>{formatCurrency(totalAmount)}</Text>
-              </View>
-            </View>
-            <View style={styles.floatCartRight}>
-              <Text style={styles.floatCartCheckout}>Xem giỏ hàng</Text>
-              <Ionicons name="chevron-forward" size={18} color="white" />
-            </View>
-          </TouchableOpacity>
-        </View>
+        <TouchableOpacity style={styles.fabCart} onPress={() => setCartVisible(true)}>
+          <View style={styles.fabCartInner}>
+            <Text style={styles.fabCartQty}>{totalQuantity}</Text>
+            <Text style={styles.fabCartTotal}>{formatCurrency(totalAmount)}</Text>
+            <Ionicons name="cart-outline" size={24} color="white" style={{ marginLeft: 10 }} />
+          </View>
+        </TouchableOpacity>
       )}
 
-      {/* --- MODAL GIỎ HÀNG (FULL REDESIGN) --- */}
-      <Modal visible={cartVisible} animationType="slide" transparent={true} statusBarTranslucent={true}>
-        <View style={styles.modalOverlay}>
-          <TouchableOpacity style={{ flex: 1 }} onPress={() => setCartVisible(false)} />
+      {/* MODAL SCANNER (CAMERA) */}
+      <Modal visible={isScannerVisible} animationType="slide">
+        <SafeAreaView style={{ flex: 1, backgroundColor: 'black' }}>
+          <View style={styles.cameraHeader}>
+            <TouchableOpacity onPress={() => setIsScannerVisible(false)} style={{ padding: 10 }}>
+              <Ionicons name="close" size={30} color="white" />
+            </TouchableOpacity>
+            <Text style={{ color: 'white', fontSize: 18, fontWeight: 'bold' }}>Quét mã vạch</Text>
+            <View style={{ width: 50 }} />
+          </View>
 
-          <View style={styles.modalContent}>
-            {/* Modal Header */}
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Giỏ hàng ({totalQuantity})</Text>
-              <TouchableOpacity onPress={() => setCartVisible(false)} style={styles.modalCloseBtn}>
-                <Ionicons name="close" size={24} color={COLORS.text} />
-              </TouchableOpacity>
+          <View style={{ flex: 1 }}>
+            <CameraView
+              style={StyleSheet.absoluteFillObject}
+              facing="back"
+              barcodeScannerSettings={{ barcodeTypes: ["qr", "ean13", "ean8", "upc_a", "upc_e", "code128"] }}
+              onBarcodeScanned={scanned ? undefined : handleBarCodeScanned}
+            />
+            {/* Khung hướng dẫn quét mã */}
+            <View style={styles.scannerOverlay}>
+              <View style={styles.scannerBox} />
+              <Text style={{ color: 'white', marginTop: 20 }}>Hướng Camera vào mã vạch sản phẩm</Text>
             </View>
+          </View>
+        </SafeAreaView>
+      </Modal>
 
-            {/* List sản phẩm trong giỏ */}
+      {/* MODAL GIỎ HÀNG (Giữ nguyên logic giỏ hàng cũ của sếp nhưng gọn hơn) */}
+      <Modal visible={cartVisible} animationType="slide" transparent={true}>
+        <View style={styles.modalOverlayCart}>
+          <TouchableOpacity style={{ flex: 1 }} onPress={() => setCartVisible(false)} />
+          <View style={styles.modalContentCart}>
+            <View style={styles.modalHeaderCart}>
+              <Text style={styles.modalTitleCart}>Giỏ hàng ({totalQuantity})</Text>
+              <TouchableOpacity onPress={() => setCartVisible(false)}><Ionicons name="close" size={24} color={COLORS.text} /></TouchableOpacity>
+            </View>
             <FlatList
               data={cart}
               keyExtractor={item => item._id.toString()}
               contentContainerStyle={{ padding: SPACING }}
-              renderItem={renderCartItem}
-              ListFooterComponent={<View style={{ height: 20 }} />}
+              renderItem={({ item }) => (
+                <View style={styles.cartItemRow}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ fontSize: 16, fontWeight: '600' }}>{item.name}</Text>
+                    <Text style={{ color: COLORS.primary, fontWeight: 'bold', marginTop: 4 }}>{formatCurrency(item.price)}</Text>
+                  </View>
+                  <View style={styles.cartActions}>
+                    <TouchableOpacity onPress={() => decreaseQuantity(item._id)} style={styles.qtyBtn}>
+                      <Ionicons name="remove" size={20} />
+                    </TouchableOpacity>
+                    <Text style={styles.qtyValue}>{item.quantity}</Text>
+                    <TouchableOpacity onPress={() => addToCart(item)} style={styles.qtyBtn}>
+                      <Ionicons name="add" size={20} />
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              )}
             />
-
-            {/* Modal Footer (Thanh toán) */}
-            <View style={[styles.modalFooter, { paddingBottom: Math.max(insets.bottom, 20) + 10 }]}>
-              <View style={styles.billRow}>
-                <Text style={styles.billLabel}>Tạm tính:</Text>
-                <Text style={styles.billValue}>{formatCurrency(totalAmount)}</Text>
-              </View>
+            <View style={[styles.modalFooterCart, { paddingBottom: Math.max(insets.bottom, 20) }]}>
               <TouchableOpacity style={styles.checkoutBigBtn} onPress={handleCheckout}>
                 <Text style={styles.checkoutBigText}>THANH TOÁN • {formatCurrency(totalAmount)}</Text>
               </TouchableOpacity>
@@ -334,6 +361,7 @@ export default function HomeScreen({ navigation }: any) {
           </View>
         </View>
       </Modal>
+
     </SafeAreaView>
   );
 }
@@ -341,80 +369,59 @@ export default function HomeScreen({ navigation }: any) {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.background },
 
-  header: { paddingHorizontal: SPACING, paddingTop: 10, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  headerSub: { fontSize: 14, color: COLORS.subText },
-  headerTitle: { fontSize: 24, fontWeight: '800', color: COLORS.text },
-  dateBadge: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#FFF', paddingHorizontal: 10, paddingVertical: 5, borderRadius: 20, borderWidth: 1, borderColor: '#EEE' },
-  dateText: { marginLeft: 5, fontSize: 12, fontWeight: '600', color: '#555', textTransform: 'capitalize' },
+  header: { alignItems: 'center', paddingTop: 10, paddingBottom: 15 },
+  headerTitle: { fontSize: 20, fontWeight: '800', color: COLORS.text },
 
-  searchContainer: { padding: SPACING, paddingBottom: 5 },
-  searchBar: { flexDirection: 'row', backgroundColor: COLORS.inputBg, height: 46, borderRadius: 12, alignItems: 'center', paddingHorizontal: 15 },
+  searchContainer: { flexDirection: 'row', paddingHorizontal: SPACING, marginBottom: 15, alignItems: 'center' },
+  searchBar: { flex: 1, flexDirection: 'row', backgroundColor: COLORS.inputBg, height: 48, borderRadius: 24, alignItems: 'center', paddingHorizontal: 15, borderWidth: 1, borderColor: COLORS.borderColor },
   searchInput: { flex: 1, marginLeft: 10, fontSize: 16, color: COLORS.text },
+  filterBtn: { width: 48, height: 48, backgroundColor: COLORS.inputBg, borderRadius: 24, justifyContent: 'center', alignItems: 'center', marginLeft: 10, borderWidth: 1, borderColor: COLORS.borderColor },
 
-  catContainer: { marginTop: 10, marginBottom: 5 },
-  catItem: { paddingHorizontal: 20, paddingVertical: 10, backgroundColor: '#FFF', borderRadius: 25, marginRight: 10, borderWidth: 1, borderColor: '#EEE' },
-  catItemActive: { backgroundColor: COLORS.primary, borderColor: COLORS.primary, shadowColor: COLORS.primary, shadowOpacity: 0.3, shadowRadius: 5, shadowOffset: { width: 0, height: 3 }, elevation: 3 },
-  catText: { fontSize: 14, fontWeight: '600', color: COLORS.subText },
-  catTextActive: { color: '#FFF' },
+  catChip: { paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20, backgroundColor: 'transparent', marginRight: 10 },
+  catChipActive: { backgroundColor: '#E5EFFF' },
+  catChipText: { fontSize: 14, color: COLORS.subText, fontWeight: '600' },
+  catChipTextActive: { color: COLORS.primary, fontWeight: '700' },
 
-  card: { width: ITEM_WIDTH, backgroundColor: COLORS.card, borderRadius: 16, marginBottom: SPACING, shadowColor: "#000", shadowOpacity: 0.05, shadowRadius: 10, shadowOffset: { width: 0, height: 5 }, elevation: 3, padding: 10 },
-  cardImgPlaceholder: { width: '100%', aspectRatio: 1.2, backgroundColor: '#F0F4F8', borderRadius: 12, justifyContent: 'center', alignItems: 'center', marginBottom: 10 },
-  productImage: { width: '100%', height: '100%' },
+  listHeaderRow: { flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: SPACING, marginBottom: 10, alignItems: 'flex-end' },
+  listHeaderTitle: { fontSize: 18, fontWeight: '700', color: COLORS.text },
+  listHeaderSubtitle: { fontSize: 14, color: COLORS.subText, fontWeight: '600' },
+
+  card: { flexDirection: 'row', backgroundColor: COLORS.card, padding: 12, borderRadius: 20, marginBottom: 12, alignItems: 'center', shadowColor: "#000", shadowOpacity: 0.03, shadowRadius: 8, elevation: 2 },
+  cardImgPlaceholder: { width: 60, height: 60, backgroundColor: '#F0F4F8', borderRadius: 12, justifyContent: 'center', alignItems: 'center', marginRight: 15 },
+  productImage: { width: '100%', height: '100%', borderRadius: 12 },
   cardImgText: { fontSize: 24, fontWeight: 'bold', color: '#B0B8C1' },
-  cardBody: { flex: 1 },
-  cardName: { fontSize: 15, fontWeight: '600', color: COLORS.text, marginBottom: 8, height: 40 },
-  cardFooter: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  cardPrice: { fontSize: 15, fontWeight: 'bold', color: COLORS.primary },
-  addBtn: { width: 30, height: 30, backgroundColor: COLORS.primary, borderRadius: 15, justifyContent: 'center', alignItems: 'center' },
-  badge: { position: 'absolute', top: -6, right: -6, backgroundColor: COLORS.danger, minWidth: 24, height: 24, borderRadius: 12, justifyContent: 'center', alignItems: 'center', borderWidth: 2, borderColor: '#FFF' },
-  badgeText: { color: '#FFF', fontSize: 11, fontWeight: 'bold', paddingHorizontal: 4 },
 
-  floatCartContainer: { position: 'absolute', bottom: 20, left: SPACING, right: SPACING },
-  floatCartBtn: { backgroundColor: '#1A1A1A', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 12, paddingHorizontal: 16, borderRadius: 16, shadowColor: "#000", shadowOpacity: 0.2, shadowRadius: 10, elevation: 5 },
-  floatCartLeft: { flexDirection: 'row', alignItems: 'center' },
-  floatCartBadge: { backgroundColor: COLORS.primary, paddingHorizontal: 8, height: 24, borderRadius: 12, justifyContent: 'center', alignItems: 'center', marginRight: 12 },
-  floatCartBadgeText: { color: '#FFF', fontWeight: 'bold', fontSize: 12 },
-  floatCartLabel: { color: '#888', fontSize: 10, textTransform: 'uppercase' },
-  floatCartValue: { color: '#FFF', fontWeight: 'bold', fontSize: 16 },
-  floatCartRight: { flexDirection: 'row', alignItems: 'center' },
-  floatCartCheckout: { color: '#FFF', fontWeight: 'bold', fontSize: 14, marginRight: 4 },
+  cardBody: { flex: 1, justifyContent: 'center' },
+  cardName: { fontSize: 16, fontWeight: '700', color: COLORS.text, marginBottom: 4 },
+  cardSubText: { fontSize: 12, color: COLORS.subText, marginBottom: 4 },
+  skuRow: { flexDirection: 'row', alignItems: 'center' },
+  skuText: { fontSize: 11, color: COLORS.subText, marginLeft: 4, letterSpacing: 0.5 },
 
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    justifyContent: 'flex-end'
-  },
-  modalContent: {
-    backgroundColor: '#F8F9FA',
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    maxHeight: '85%',
-    width: '100%',
-    shadowColor: "#000", shadowOpacity: 0.2, shadowRadius: 10, elevation: 10
-  },
-  modalHeader: {
-    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
-    padding: SPACING,
-    borderBottomWidth: 1, borderBottomColor: '#EEE',
-    backgroundColor: '#FFF',
-    borderTopLeftRadius: 24, borderTopRightRadius: 24
-  },
-  modalTitle: { fontSize: 20, fontWeight: '800', color: COLORS.text },
-  modalCloseBtn: { padding: 5 },
+  cardRight: { alignItems: 'flex-end', justifyContent: 'center', marginLeft: 10 },
+  cardPrice: { fontSize: 16, fontWeight: '800', color: COLORS.text, marginBottom: 8 },
+  addBtn: { width: 36, height: 36, backgroundColor: '#E5EFFF', borderRadius: 18, justifyContent: 'center', alignItems: 'center' },
+  addBtnDisabled: { backgroundColor: '#F5F5F5' },
 
-  cartItemRow: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#FFF', padding: 12, borderRadius: 12, marginBottom: 12 },
-  cartItemIcon: { width: 48, height: 48, borderRadius: 10, backgroundColor: '#F0F4F8', justifyContent: 'center', alignItems: 'center' },
-  cartItemName: { fontSize: 16, fontWeight: '600', color: COLORS.text, marginBottom: 4 },
-  cartItemPrice: { fontSize: 14, color: COLORS.subText },
+  fabScanner: { position: 'absolute', bottom: 30, alignSelf: 'center', width: 64, height: 64, borderRadius: 32, backgroundColor: COLORS.primary, justifyContent: 'center', alignItems: 'center', shadowColor: COLORS.primary, shadowOpacity: 0.4, shadowRadius: 10, shadowOffset: { width: 0, height: 5 }, elevation: 8, zIndex: 10 },
 
-  cartActions: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#F5F5F5', borderRadius: 8 },
-  qtyBtn: { width: 32, height: 32, justifyContent: 'center', alignItems: 'center' },
-  qtyValue: { width: 20, textAlign: 'center', fontSize: 15, fontWeight: '600' },
+  fabCart: { position: 'absolute', bottom: 35, right: 20, backgroundColor: COLORS.text, borderRadius: 25, paddingVertical: 10, paddingHorizontal: 15, shadowColor: "#000", shadowOpacity: 0.2, shadowRadius: 5, elevation: 5, zIndex: 9 },
+  fabCartInner: { flexDirection: 'row', alignItems: 'center' },
+  fabCartQty: { backgroundColor: COLORS.primary, color: 'white', width: 22, height: 22, borderRadius: 11, textAlign: 'center', lineHeight: 22, fontSize: 12, fontWeight: 'bold', marginRight: 8 },
+  fabCartTotal: { color: 'white', fontSize: 15, fontWeight: 'bold' },
 
-  modalFooter: { backgroundColor: '#FFF', padding: SPACING, borderTopWidth: 1, borderTopColor: '#EEE' },
-  billRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 15 },
-  billLabel: { fontSize: 16, color: COLORS.subText },
-  billValue: { fontSize: 18, fontWeight: 'bold', color: COLORS.text },
-  checkoutBigBtn: { backgroundColor: COLORS.primary, height: 50, borderRadius: 14, justifyContent: 'center', alignItems: 'center', shadowColor: COLORS.primary, shadowOpacity: 0.3, shadowRadius: 10, elevation: 4 },
-  checkoutBigText: { color: '#FFF', fontSize: 16, fontWeight: 'bold', letterSpacing: 0.5 }
+  cameraHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 15, paddingTop: 50 },
+  scannerOverlay: { ...StyleSheet.absoluteFillObject, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.5)' },
+  scannerBox: { width: 250, height: 250, borderWidth: 2, borderColor: COLORS.primary, backgroundColor: 'transparent', borderRadius: 20 },
+
+  modalOverlayCart: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
+  modalContentCart: { backgroundColor: '#FFF', borderTopLeftRadius: 24, borderTopRightRadius: 24, maxHeight: '85%' },
+  modalHeaderCart: { flexDirection: 'row', justifyContent: 'space-between', padding: 20, borderBottomWidth: 1, borderBottomColor: '#EEE' },
+  modalTitleCart: { fontSize: 20, fontWeight: '800' },
+  cartItemRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 15, paddingBottom: 15, borderBottomWidth: 1, borderBottomColor: '#F5F5F5' },
+  cartActions: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#F5F5F5', borderRadius: 20, paddingHorizontal: 5, paddingVertical: 3 },
+  qtyBtn: { padding: 5 },
+  qtyValue: { width: 30, textAlign: 'center', fontWeight: 'bold' },
+  modalFooterCart: { padding: 20, borderTopWidth: 1, borderTopColor: '#EEE' },
+  checkoutBigBtn: { backgroundColor: COLORS.primary, height: 54, borderRadius: 16, justifyContent: 'center', alignItems: 'center' },
+  checkoutBigText: { color: '#FFF', fontSize: 16, fontWeight: 'bold' }
 });

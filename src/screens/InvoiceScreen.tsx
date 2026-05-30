@@ -102,13 +102,13 @@ export default function HistoryScreen() {
     let currentSection: any = null;
 
     invoices.forEach((item) => {
-      const dateKey = new Date(item.created_at).toLocaleDateString('vi-VN');
+      const dateKey = new Date(item.createdAt).toLocaleDateString('vi-VN');
       if (!currentSection || currentSection.title !== dateKey) {
         currentSection = { title: dateKey, data: [], dayTotal: 0 };
         grouped.push(currentSection);
       }
       currentSection.data.push(item);
-      currentSection.dayTotal += item.total_amount;
+      currentSection.dayTotal += item.totalAmount;
     });
     return grouped;
   }, [invoices]);
@@ -144,25 +144,25 @@ export default function HistoryScreen() {
           </View>
           <View style={{ marginLeft: 12 }}>
             <Text style={styles.summaryText} numberOfLines={1}>
-              {item.invoice_items?.map((i: any) => i.product_name).join(', ')}
+              {item.items?.map((i: any) => i.productName).join(', ')}
             </Text>
             <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 4 }}>
               <Clock size={12} color={COLORS.subText} style={{ marginRight: 4 }} />
               <Text style={styles.timeText}>
-                {new Date(item.created_at).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}
+                {new Date(item.createdAt).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}
               </Text>
-              <Text style={styles.itemCount}> • {item.invoice_items?.length || 0} món</Text>
+              <Text style={styles.itemCount}> • {item.items?.length || 0} món</Text>
             </View>
           </View>
         </View>
-        <Text style={styles.amountText}>{formatCurrency(item.total_amount)}</Text>
+        <Text style={styles.amountText}>{formatCurrency(item.totalAmount)}</Text>
       </View>
     </TouchableOpacity>
   );
 
   return (
     <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
-      <StatusBar style="light" />
+      <StatusBar style="dark" />
 
       {/* HEADER MỚI BỎ NÚT ĐĂNG XUẤT */}
       <View style={styles.header}>
@@ -221,16 +221,16 @@ export default function HistoryScreen() {
               <View>
                 <View style={{ alignItems: 'center', marginBottom: 20 }}>
                   <Text style={styles.modalId}>Mã Đơn: #{selectedInvoice._id?.slice(-6).toUpperCase()}</Text>
-                  <Text style={styles.modalDate}>{formatDate(selectedInvoice.created_at)}</Text>
+                  <Text style={styles.modalDate}>{formatDate(selectedInvoice.createdAt)}</Text>
                 </View>
 
                 {/* ĐƯỜNG KẺ ĐỨT NÉT KIỂU BILL */}
                 <View style={styles.dashedDivider} />
 
-                {selectedInvoice.invoice_items?.map((item: any, index: number) => (
+                {selectedInvoice.items?.map((item: any, index: number) => (
                   <View key={index} style={styles.detailRow}>
                     <View style={{ flex: 1, paddingRight: 10 }}>
-                      <Text style={styles.detailName}>{item.product_name}</Text>
+                      <Text style={styles.detailName}>{item.productName}</Text>
                       <Text style={styles.detailQtyPrice}>{item.quantity} {item.unit} x {formatCurrency(item.price)}</Text>
                     </View>
                     <Text style={styles.detailTotalPrice}>{formatCurrency(item.price * item.quantity)}</Text>
@@ -241,7 +241,7 @@ export default function HistoryScreen() {
 
                 <View style={styles.totalRow}>
                   <Text style={styles.totalLabel}>TỔNG CỘNG</Text>
-                  <Text style={styles.totalValue}>{formatCurrency(selectedInvoice.total_amount)}</Text>
+                  <Text style={styles.totalValue}>{formatCurrency(selectedInvoice.totalAmount)}</Text>
                 </View>
 
                 {/* NÚT HỦY ĐƠN HÀNG */}

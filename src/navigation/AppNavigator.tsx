@@ -8,6 +8,7 @@ import { ShoppingCart, Package, Receipt, Grid2x2, Barcode } from 'lucide-react-n
 import { AuthContext } from '../context/AuthContext';
 import NetworkStatus from '../components/NetworkStatus';
 import { COLORS } from '../constants/theme';
+import { StatusBar } from 'expo-status-bar';
 
 import LoginScreen from '../screens/LoginScreen';
 import PosScreen from '../screens/PosScreen';
@@ -74,7 +75,7 @@ const AppRoot = () => (
 export default function AppNavigator() {
     const { isLoading, userToken } = useContext(AuthContext);
     if (isLoading) return <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}><ActivityIndicator size="large" color={COLORS.primary} /></View>;
-    return <><NetworkStatus />{userToken ? <AppRoot /> : <AuthStack />}</>;
+    return <><StatusBar style="dark" backgroundColor="transparent" translucent={true} /><NetworkStatus />{userToken ? <AppRoot /> : <AuthStack />}</>;
 }
 
 const styles = StyleSheet.create({

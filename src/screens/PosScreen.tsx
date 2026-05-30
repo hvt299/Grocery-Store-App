@@ -1,21 +1,25 @@
-import React, { useEffect, useState, useCallback, useMemo } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import {
   View, Text, StyleSheet, FlatList, TouchableOpacity,
-  Alert, Modal, TextInput, RefreshControl, Image, KeyboardAvoidingView, Platform
+  Alert, Modal, TextInput, RefreshControl, Image, KeyboardAvoidingView, Platform, Dimensions
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import NetInfo from '@react-native-community/netinfo';
 import { StatusBar } from 'expo-status-bar';
-import { CameraView, useCameraPermissions } from 'expo-camera';
+
+import { Store, ShoppingCart, X, Plus, Minus, Pencil } from 'lucide-react-native';
 
 import { getProducts, getCategories, createInvoice } from '../services/productService';
 import { formatCurrency } from '../utils/format';
 import { socket } from '../lib/socket';
 import { COLORS, SPACING } from '../constants/theme';
+import GlobalSearchBar from '../components/GlobalSearchBar';
 
-export default function HomeScreen({ navigation, route }: any) {
+const { width } = Dimensions.get('window');
+const CARD_WIDTH = (width - SPACING * 3) / 2;
+
+export default function PosScreen({ navigation, route }: any) {
   const insets = useSafeAreaInsets();
 
   const [products, setProducts] = useState<any[]>([]);
@@ -31,10 +35,6 @@ export default function HomeScreen({ navigation, route }: any) {
   const [editingCartItem, setEditingCartItem] = useState<any>(null);
   const [newPrice, setNewPrice] = useState('');
 
-  const [permission, requestPermission] = useCameraPermissions();
-  const [isScannerVisible, setIsScannerVisible] = useState(false);
-  const [scanned, setScanned] = useState(false);
-
   useFocusEffect(React.useCallback(() => { fetchData(1, true); }, []));
 
   useEffect(() => {
@@ -49,12 +49,6 @@ export default function HomeScreen({ navigation, route }: any) {
     return () => clearTimeout(delayDebounceFn);
   }, [searchText, selectedCat]);
 
-  useEffect(() => {
-    if (route?.params?.triggerScan) {
-      openScanner();
-    }
-  }, [route?.params?.triggerScan]);
-
   const fetchData = async (page = 1, isReset = false) => {
     try {
       const [prodsRes, cats] = await Promise.all([getProducts(page, 50, searchText, selectedCat), getCategories()]);
@@ -66,22 +60,25 @@ export default function HomeScreen({ navigation, route }: any) {
 
   const onRefresh = async () => { setRefreshing(true); await fetchData(1, true); setRefreshing(false); };
 
-  const openScanner = async () => {
-    if (!permission?.granted) {
-      const { granted } = await requestPermission();
-      if (!granted) { Alert.alert('Cấp quyền', 'Bạn cần cho phép dùng Camera để quét mã vạch.'); return; }
-    }
-    setScanned(false); setIsScannerVisible(true);
-  };
+  useEffect(() => {
+    if (route.params?.scannedSku && route.params?.timestamp) {
+      const sku = route.params.scannedSku;
+      const action = route.params.scannerAction;
 
-  const handleBarCodeScanned = ({ data }: any) => {
-    setScanned(true); setIsScannerVisible(false);
-    const foundProduct = products.find(p => p.sku === data);
-    if (foundProduct) {
-      if (foundProduct.stock > 0) { addToCart(foundProduct); Alert.alert('Thành công', `Đã thêm ${foundProduct.name} vào giỏ!`); }
-      else { Alert.alert('Hết hàng', `${foundProduct.name} đã hết tồn kho!`); }
-    } else { Alert.alert('Lỗi', `Không tìm thấy sản phẩm có mã: ${data}`); }
-  };
+      if (action === 'addToCart') {
+        const foundProduct = products.find(p => p.sku === sku);
+        if (foundProduct) {
+          addToCart(foundProduct);
+        } else {
+          Alert.alert('Không tìm thấy', `Mã vạch ${sku} chưa có trong kho.`);
+        }
+      } else if (action === 'search') {
+        setSearchText(sku);
+      }
+
+      navigation.setParams({ scannedSku: null, scannerAction: null, timestamp: null });
+    }
+  }, [route.params?.timestamp, products]);
 
   const addToCart = (product: any) => {
     if (product.stock <= 0) { Alert.alert('Cảnh báo', 'Sản phẩm này đã hết hàng!'); return; }
@@ -146,37 +143,34 @@ export default function HomeScreen({ navigation, route }: any) {
 
     return (
       <TouchableOpacity
-        style={styles.card}
+        style={styles.gridCard}
         activeOpacity={0.7}
         onPress={() => addToCart(item)}
       >
-        <View style={styles.cardImgPlaceholder}>
-          {item.imageUrl ? (<Image source={{ uri: item.imageUrl }} style={styles.productImage} resizeMode="cover" />) : (<Text style={styles.cardImgText}>{item.name.charAt(0).toUpperCase()}</Text>)}
-        </View>
-
-        <View style={styles.cardBody}>
-          <Text style={styles.cardName} numberOfLines={1}>{item.name}</Text>
-          {/* HIỂN THỊ MÀU CẢNH BÁO TỒN KHO */}
-          <Text style={[styles.cardSubText, { color: getStockColor(item.stock), fontWeight: '600' }]}>
-            {isOutOfStock ? 'Hết hàng' : `Tồn kho: ${item.stock}`}
-          </Text>
-          <View style={styles.skuRow}>
-            <Ionicons name="barcode-outline" size={14} color={COLORS.subText} />
-            {/* XỬ LÝ THIẾU THÔNG TIN MÃ VẠCH */}
-            <Text style={[styles.skuText, !item.sku && { fontStyle: 'italic', color: '#B0B0B0' }]}>
-              {item.sku ? item.sku : 'Chưa cập nhật mã vạch'}
-            </Text>
+        <View style={styles.gridImgPlaceholder}>
+          {item.imageUrl ? (
+            <Image source={{ uri: item.imageUrl }} style={styles.productImage} resizeMode="cover" />
+          ) : (
+            <Text style={styles.cardImgText}>{item.name.charAt(0).toUpperCase()}</Text>
+          )}
+          {/* Badge Tồn kho đè lên ảnh */}
+          <View style={[styles.stockBadge, { backgroundColor: getStockColor(item.stock) }]}>
+            <Text style={styles.stockBadgeText}>{isOutOfStock ? 'Hết' : item.stock}</Text>
           </View>
         </View>
 
-        <View style={styles.cardRight}>
-          <Text style={styles.cardPrice}>{formatCurrency(item.price)}</Text>
-          <View style={[styles.addBtn, isOutOfStock && styles.addBtnDisabled, qtyInCart > 0 && styles.addBtnActive]}>
-            {qtyInCart > 0 ? (
-              <Text style={{ color: 'white', fontWeight: 'bold' }}>{qtyInCart}</Text>
-            ) : (
-              <Ionicons name="add" size={20} color={isOutOfStock ? COLORS.subText : COLORS.primary} />
-            )}
+        <View style={styles.gridBody}>
+          <Text style={styles.cardName} numberOfLines={2}>{item.name}</Text>
+          <View style={styles.gridFooter}>
+            <Text style={styles.cardPrice}>{formatCurrency(item.price)}</Text>
+
+            <View style={[styles.addBtn, isOutOfStock && styles.addBtnDisabled, qtyInCart > 0 && styles.addBtnActive]}>
+              {qtyInCart > 0 ? (
+                <Text style={{ color: 'white', fontWeight: 'bold' }}>{qtyInCart}</Text>
+              ) : (
+                <Plus size={18} color={isOutOfStock ? COLORS.subText : COLORS.primary} strokeWidth={3} />
+              )}
+            </View>
           </View>
         </View>
       </TouchableOpacity>
@@ -193,23 +187,16 @@ export default function HomeScreen({ navigation, route }: any) {
           <Text style={styles.headerTitle}>Sẵn sàng chốt đơn!</Text>
         </View>
         <TouchableOpacity style={styles.headerAvatar}>
-          <Ionicons name="storefront" size={24} color={COLORS.primary} />
+          <Store size={24} color={COLORS.primary} strokeWidth={2} />
         </TouchableOpacity>
       </View>
 
-      <View style={styles.searchContainer}>
-        <View style={styles.searchBar}>
-          <Ionicons name="search" size={20} color={COLORS.subText} />
-          <TextInput style={styles.searchInput} placeholder="Tìm tên hoặc mã hàng..." value={searchText} onChangeText={setSearchText} />
-          {searchText !== '' && (
-            <TouchableOpacity onPress={() => setSearchText('')} style={{ marginRight: 8 }}>
-              <Ionicons name="close-circle" size={18} color={COLORS.subText} />
-            </TouchableOpacity>
-          )}
-          <TouchableOpacity onPress={openScanner} style={styles.searchScanBtn}>
-            <Ionicons name="barcode-outline" size={20} color={COLORS.primary} />
-          </TouchableOpacity>
-        </View>
+      <View style={{ paddingHorizontal: SPACING, marginBottom: 15 }}>
+        <GlobalSearchBar
+          placeholder="Tìm tên, mã vạch..."
+          value={searchText}
+          onChangeText={setSearchText}
+        />
       </View>
 
       <View style={{ paddingHorizontal: SPACING, marginBottom: 15 }}>
@@ -225,23 +212,26 @@ export default function HomeScreen({ navigation, route }: any) {
         />
       </View>
 
+      {/* CHUYỂN SANG DẠNG LƯỚI 2 CỘT */}
       <FlatList
         data={products}
         keyExtractor={i => i._id.toString()}
         renderItem={renderProduct}
+        numColumns={2}
+        columnWrapperStyle={styles.rowWrapper}
         contentContainerStyle={{ paddingHorizontal: SPACING, paddingBottom: 180 }}
         showsVerticalScrollIndicator={false}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[COLORS.primary]} />}
         ListEmptyComponent={<Text style={{ textAlign: 'center', marginTop: 50, color: COLORS.subText }}>Không tìm thấy sản phẩm</Text>}
       />
 
-      {/* THANH GIỎ HÀNG CHUYÊN NGHIỆP */}
+      {/* THANH GIỎ HÀNG */}
       {cart.length > 0 && (
         <View style={styles.checkoutBarWrapper}>
           <TouchableOpacity style={styles.checkoutBar} onPress={() => setCartVisible(true)} activeOpacity={0.9}>
             <View style={styles.checkoutBarLeft}>
               <View style={styles.checkoutIcon}>
-                <Ionicons name="cart" size={20} color={COLORS.primary} />
+                <ShoppingCart size={20} color={COLORS.primary} strokeWidth={2.5} />
                 <View style={styles.checkoutBadge}><Text style={styles.checkoutBadgeText}>{totalQuantity}</Text></View>
               </View>
               <View style={{ marginLeft: 12 }}>
@@ -251,47 +241,26 @@ export default function HomeScreen({ navigation, route }: any) {
             </View>
             <View style={styles.checkoutBarRight}>
               <Text style={styles.checkoutBtnText}>Xem giỏ</Text>
-              <Ionicons name="chevron-forward" size={20} color="white" />
             </View>
           </TouchableOpacity>
         </View>
       )}
 
-      {/* MODAL SCANNER */}
-      <Modal visible={isScannerVisible} animationType="slide">
-        <SafeAreaView style={{ flex: 1, backgroundColor: 'black' }}>
-          <View style={styles.cameraHeader}>
-            <TouchableOpacity onPress={() => setIsScannerVisible(false)} style={{ padding: 10 }}><Ionicons name="close" size={30} color="white" /></TouchableOpacity>
-            <Text style={{ color: 'white', fontSize: 18, fontWeight: 'bold' }}>Quét mã vạch</Text>
-            <View style={{ width: 50 }} />
-          </View>
-          <View style={{ flex: 1 }}>
-            <CameraView style={StyleSheet.absoluteFillObject} facing="back" barcodeScannerSettings={{ barcodeTypes: ["qr", "ean13", "ean8", "upc_a", "upc_e", "code128"] }} onBarcodeScanned={scanned ? undefined : handleBarCodeScanned} />
-            <View style={styles.scannerOverlay}>
-              <View style={styles.scannerBox} />
-              <Text style={{ color: 'white', marginTop: 20 }}>Hướng Camera vào mã vạch sản phẩm</Text>
-            </View>
-          </View>
-        </SafeAreaView>
-      </Modal>
-
-      {/* MODAL GIỎ HÀNG */}
+      {/* MODAL GIỎ HÀNG (BILL) */}
       <Modal visible={cartVisible} animationType="slide" transparent={true}>
         <View style={styles.modalOverlayCart}>
           <TouchableOpacity style={{ flex: 1 }} onPress={() => setCartVisible(false)} />
           <View style={styles.modalContentCart}>
             <View style={styles.modalHeaderCart}>
               <Text style={styles.modalTitleCart}>Giỏ hàng ({totalQuantity})</Text>
-
               <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                {/* NÚT XÓA SẠCH GIỎ HÀNG */}
                 {cart.length > 0 && (
                   <TouchableOpacity onPress={clearCart} style={{ marginRight: 15 }}>
-                    <Ionicons name="trash-outline" size={24} color={COLORS.danger} />
+                    <Text style={{ color: COLORS.danger, fontWeight: 'bold' }}>Xóa sạch</Text>
                   </TouchableOpacity>
                 )}
                 <TouchableOpacity onPress={() => setCartVisible(false)}>
-                  <Ionicons name="close" size={24} color={COLORS.text} />
+                  <X size={24} color={COLORS.text} />
                 </TouchableOpacity>
               </View>
             </View>
@@ -299,18 +268,13 @@ export default function HomeScreen({ navigation, route }: any) {
             <FlatList
               data={cart}
               keyExtractor={item => item._id.toString()}
-              contentContainerStyle={[
-                { padding: SPACING, flexGrow: 1 },
-                cart.length === 0 && { justifyContent: 'center' }
-              ]}
-
+              contentContainerStyle={[{ padding: SPACING, flexGrow: 1 }, cart.length === 0 && { justifyContent: 'center' }]}
               ListEmptyComponent={
                 <View style={{ alignItems: 'center', justifyContent: 'center', paddingVertical: 40 }}>
-                  <Ionicons name="cart-outline" size={30} color={COLORS.subText} style={{ opacity: 0.5, marginBottom: 15 }} />
+                  <ShoppingCart size={40} color={COLORS.subText} style={{ opacity: 0.5, marginBottom: 15 }} />
                   <Text style={{ fontSize: 16, color: COLORS.subText, fontStyle: 'italic' }}>Giỏ hàng của bạn đang trống</Text>
                 </View>
               }
-
               renderItem={({ item }) => (
                 <View style={styles.cartItemRow}>
                   <View style={{ flex: 1 }}>
@@ -318,7 +282,7 @@ export default function HomeScreen({ navigation, route }: any) {
                     <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                       <TouchableOpacity onPress={() => openEditPrice(item)}>
                         <Text style={{ color: COLORS.subText, fontSize: 14 }}>
-                          {formatCurrency(item.price)} <Ionicons name="pencil" size={12} />
+                          {formatCurrency(item.price)} <Pencil size={12} color={COLORS.subText} />
                         </Text>
                       </TouchableOpacity>
                       <Text style={{ color: COLORS.subText, fontSize: 14 }}>  x  {item.quantity}  =  </Text>
@@ -328,9 +292,9 @@ export default function HomeScreen({ navigation, route }: any) {
                     </View>
                   </View>
                   <View style={styles.cartActions}>
-                    <TouchableOpacity onPress={() => decreaseQuantity(item._id)} style={styles.qtyBtn}><Ionicons name="remove" size={20} color={COLORS.text} /></TouchableOpacity>
+                    <TouchableOpacity onPress={() => decreaseQuantity(item._id)} style={styles.qtyBtn}><Minus size={20} color={COLORS.text} /></TouchableOpacity>
                     <Text style={styles.qtyValue}>{item.quantity}</Text>
-                    <TouchableOpacity onPress={() => addToCart(item)} style={styles.qtyBtn}><Ionicons name="add" size={20} color={COLORS.text} /></TouchableOpacity>
+                    <TouchableOpacity onPress={() => addToCart(item)} style={styles.qtyBtn}><Plus size={20} color={COLORS.text} /></TouchableOpacity>
                   </View>
                 </View>
               )}
@@ -377,29 +341,24 @@ const styles = StyleSheet.create({
   headerTitle: { fontSize: 22, fontWeight: '800', color: COLORS.text },
   headerAvatar: { width: 44, height: 44, backgroundColor: COLORS.primaryLight, borderRadius: 22, justifyContent: 'center', alignItems: 'center' },
 
-  searchContainer: { paddingHorizontal: SPACING, marginBottom: 15 },
-  searchBar: { flexDirection: 'row', backgroundColor: COLORS.inputBg, height: 50, borderRadius: 16, alignItems: 'center', paddingHorizontal: 15, shadowColor: "#000", shadowOpacity: 0.05, shadowRadius: 8, elevation: 2, overflow: 'hidden' },
-  searchInput: { flex: 1, marginLeft: 10, fontSize: 15, color: COLORS.text },
-  searchScanBtn: { padding: 8, backgroundColor: COLORS.primaryLight, borderRadius: 10, marginLeft: 5 },
-
   catChip: { paddingHorizontal: 20, paddingVertical: 10, borderRadius: 20, backgroundColor: COLORS.card, marginRight: 10, borderWidth: 1, borderColor: COLORS.borderColor },
   catChipActive: { backgroundColor: COLORS.primary, borderColor: COLORS.primary },
   catChipText: { fontSize: 14, color: COLORS.subText, fontWeight: '600' },
   catChipTextActive: { color: 'white', fontWeight: '700' },
 
-  card: { flexDirection: 'row', backgroundColor: COLORS.card, padding: 12, borderRadius: 16, marginBottom: 12, alignItems: 'center', shadowColor: "#000", shadowOpacity: 0.03, shadowRadius: 8, elevation: 2 },
-  cardImgPlaceholder: { width: 64, height: 64, backgroundColor: '#F0F4F8', borderRadius: 12, justifyContent: 'center', alignItems: 'center', marginRight: 15 },
-  productImage: { width: '100%', height: '100%', borderRadius: 12 },
-  cardImgText: { fontSize: 24, fontWeight: 'bold', color: '#B0B8C1' },
+  rowWrapper: { justifyContent: 'space-between', marginBottom: 15 },
+  gridCard: { width: CARD_WIDTH, backgroundColor: COLORS.card, borderRadius: 16, overflow: 'hidden', shadowColor: "#000", shadowOpacity: 0.03, shadowRadius: 8, elevation: 2 },
+  gridImgPlaceholder: { width: '100%', height: CARD_WIDTH, backgroundColor: '#F0F4F8', justifyContent: 'center', alignItems: 'center', position: 'relative' },
+  productImage: { width: '100%', height: '100%' },
+  cardImgText: { fontSize: 32, fontWeight: 'bold', color: '#B0B8C1' },
+  stockBadge: { position: 'absolute', top: 8, left: 8, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8 },
+  stockBadgeText: { color: 'white', fontSize: 10, fontWeight: 'bold' },
 
-  cardBody: { flex: 1, justifyContent: 'center' },
-  cardName: { fontSize: 16, fontWeight: '700', color: COLORS.text, marginBottom: 6 },
-  cardSubText: { fontSize: 13, marginBottom: 6 },
-  skuRow: { flexDirection: 'row', alignItems: 'center' },
-  skuText: { fontSize: 12, marginLeft: 4 },
+  gridBody: { padding: 12 },
+  cardName: { fontSize: 14, fontWeight: '700', color: COLORS.text, height: 40, marginBottom: 8 },
+  gridFooter: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  cardPrice: { fontSize: 15, fontWeight: '900', color: COLORS.primary },
 
-  cardRight: { alignItems: 'flex-end', justifyContent: 'center', marginLeft: 10 },
-  cardPrice: { fontSize: 16, fontWeight: '800', color: COLORS.text, marginBottom: 12 },
   addBtn: { width: 32, height: 32, backgroundColor: COLORS.primaryLight, borderRadius: 10, justifyContent: 'center', alignItems: 'center' },
   addBtnDisabled: { backgroundColor: '#F5F5F5' },
   addBtnActive: { backgroundColor: COLORS.primary },
@@ -413,11 +372,7 @@ const styles = StyleSheet.create({
   checkoutTotalLabel: { color: 'rgba(255,255,255,0.8)', fontSize: 12, fontWeight: '600' },
   checkoutTotalAmount: { color: 'white', fontSize: 18, fontWeight: '900', marginTop: 2 },
   checkoutBarRight: { flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.2)', paddingHorizontal: 16, paddingVertical: 10, borderRadius: 14 },
-  checkoutBtnText: { color: 'white', fontWeight: 'bold', marginRight: 5, fontSize: 14 },
-
-  cameraHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 15, paddingTop: 50 },
-  scannerOverlay: { ...StyleSheet.absoluteFillObject, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.5)' },
-  scannerBox: { width: 250, height: 250, borderWidth: 2, borderColor: COLORS.primary, backgroundColor: 'transparent', borderRadius: 20 },
+  checkoutBtnText: { color: 'white', fontWeight: 'bold', fontSize: 14 },
 
   modalOverlayCart: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
   modalContentCart: { backgroundColor: '#FFF', borderTopLeftRadius: 24, borderTopRightRadius: 24, maxHeight: '85%' },

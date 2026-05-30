@@ -77,9 +77,10 @@ export const deleteProduct = async (id: string) => {
     await apiClient.delete(`/products/${id}`);
 };
 
-export const getInvoices = async () => {
-    const { data } = await apiClient.get('/invoices');
-    return data.map((item: any) => ({
+export const getInvoices = async (page = 1, limit = 20) => {
+    const { data: response } = await apiClient.get('/invoices', { params: { page, limit } });
+
+    const mappedData = response.data.map((item: any) => ({
         ...item,
         total_amount: item.totalAmount,
         created_at: item.createdAt,
@@ -90,6 +91,11 @@ export const getInvoices = async () => {
             price: i.price,
         }))
     }));
+
+    return {
+        ...response,
+        data: mappedData
+    };
 };
 
 export const createInvoice = async (cartItems: any[], totalAmount: number) => {

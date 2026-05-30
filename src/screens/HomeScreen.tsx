@@ -39,6 +39,10 @@ export default function HomeScreen({ navigation }: any) {
   const [cartVisible, setCartVisible] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
 
+  const [editPriceModalVisible, setEditPriceModalVisible] = useState(false);
+  const [editingCartItem, setEditingCartItem] = useState<any>(null);
+  const [newPrice, setNewPrice] = useState('');
+
   const [permission, requestPermission] = useCameraPermissions();
   const [isScannerVisible, setIsScannerVisible] = useState(false);
   const [scanned, setScanned] = useState(false);
@@ -170,6 +174,22 @@ export default function HomeScreen({ navigation }: any) {
         }
       }
     ]);
+  };
+
+  const openEditPrice = (item: any) => {
+    setEditingCartItem(item);
+    setNewPrice(item.price.toString());
+    setEditPriceModalVisible(true);
+  };
+
+  const saveNewPrice = () => {
+    if (!editingCartItem || !newPrice) return;
+    setCart(curr => curr.map(i =>
+      i._id === editingCartItem._id
+        ? { ...i, price: parseInt(newPrice) }
+        : i
+    ));
+    setEditPriceModalVisible(false);
   };
 
   const renderProduct = ({ item }: { item: any }) => {
@@ -339,7 +359,11 @@ export default function HomeScreen({ navigation }: any) {
                 <View style={styles.cartItemRow}>
                   <View style={{ flex: 1 }}>
                     <Text style={{ fontSize: 16, fontWeight: '600' }}>{item.name}</Text>
-                    <Text style={{ color: COLORS.primary, fontWeight: 'bold', marginTop: 4 }}>{formatCurrency(item.price)}</Text>
+                    <TouchableOpacity onPress={() => openEditPrice(item)}>
+                      <Text style={{ color: COLORS.primary, fontWeight: 'bold', marginTop: 4 }}>
+                        {formatCurrency(item.price)} <Ionicons name="pencil" size={12} />
+                      </Text>
+                    </TouchableOpacity>
                   </View>
                   <View style={styles.cartActions}>
                     <TouchableOpacity onPress={() => decreaseQuantity(item._id)} style={styles.qtyBtn}>
@@ -356,6 +380,31 @@ export default function HomeScreen({ navigation }: any) {
             <View style={[styles.modalFooterCart, { paddingBottom: Math.max(insets.bottom, 20) }]}>
               <TouchableOpacity style={styles.checkoutBigBtn} onPress={handleCheckout}>
                 <Text style={styles.checkoutBigText}>THANH TOÁN • {formatCurrency(totalAmount)}</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* MODAL SỬA GIÁ TRONG GIỎ HÀNG */}
+      <Modal visible={editPriceModalVisible} transparent={true} animationType="fade">
+        <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center' }}>
+          <View style={{ backgroundColor: 'white', padding: 20, borderRadius: 16, width: '80%' }}>
+            <Text style={{ fontSize: 18, fontWeight: 'bold', marginBottom: 15 }}>Sửa giá bán</Text>
+            <Text style={{ color: 'gray', marginBottom: 10 }}>{editingCartItem?.name}</Text>
+            <TextInput
+              style={{ borderWidth: 1, borderColor: '#E5E5EA', borderRadius: 10, padding: 12, fontSize: 18, marginBottom: 20 }}
+              keyboardType="numeric"
+              value={newPrice}
+              onChangeText={setNewPrice}
+              autoFocus
+            />
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+              <TouchableOpacity style={{ flex: 1, padding: 12, backgroundColor: '#F5F5F5', borderRadius: 10, marginRight: 10, alignItems: 'center' }} onPress={() => setEditPriceModalVisible(false)}>
+                <Text style={{ fontWeight: 'bold', color: 'gray' }}>Hủy</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={{ flex: 1, padding: 12, backgroundColor: COLORS.primary, borderRadius: 10, marginLeft: 10, alignItems: 'center' }} onPress={saveNewPrice}>
+                <Text style={{ fontWeight: 'bold', color: 'white' }}>Lưu giá</Text>
               </TouchableOpacity>
             </View>
           </View>

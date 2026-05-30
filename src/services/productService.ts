@@ -153,3 +153,13 @@ export const uploadImageToCloudinary = async (imageUri: string) => {
         throw error;
     }
 };
+
+export const getDashboardAnalytics = async () => {
+    try {
+        const { data } = await apiClient.get('/invoices/dashboard/analytics');
+        return data;
+    } catch (error) {
+        console.error('Lỗi lấy dữ liệu Dashboard:', error);
+        throw error;
+    }
+};

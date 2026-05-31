@@ -1,13 +1,14 @@
 import React, { useState, useCallback } from 'react';
 import {
-    View, Text, StyleSheet, ScrollView, RefreshControl, Dimensions
+    View, Text, StyleSheet, ScrollView, RefreshControl, Dimensions,
+    TouchableOpacity
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import { StatusBar } from 'expo-status-bar';
 import { LineChart } from 'react-native-chart-kit';
 
-import { Trophy, AlertTriangle, TrendingUp, PackageSearch } from 'lucide-react-native';
+import { Trophy, AlertTriangle, TrendingUp, PackageSearch, ChevronLeft } from 'lucide-react-native';
 
 import { getDashboardAnalytics } from '../services/productService';
 import { formatCurrency, formatShortDate } from '../utils/format';
@@ -15,7 +16,7 @@ import { COLORS, SPACING } from '../constants/theme';
 
 const { width } = Dimensions.get('window');
 
-export default function DashboardScreen() {
+export default function DashboardScreen({ navigation }: any) {
     const [analytics, setAnalytics] = useState<any>(null);
     const [refreshing, setRefreshing] = useState(false);
     const [loading, setLoading] = useState(true);
@@ -73,9 +74,17 @@ export default function DashboardScreen() {
             <StatusBar style="dark" />
 
             <View style={styles.header}>
-                <View>
-                    <Text style={styles.headerTitle}>Báo cáo Thống kê</Text>
-                    <Text style={styles.headerSub}>Tổng quan tình hình kinh doanh</Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                    <TouchableOpacity
+                        onPress={() => navigation.goBack()}
+                        style={{ paddingRight: 15, paddingVertical: 5 }}
+                    >
+                        <ChevronLeft size={28} color={COLORS.text} />
+                    </TouchableOpacity>
+                    <View>
+                        <Text style={styles.headerTitle}>Báo cáo</Text>
+                        <Text style={styles.headerSub}>Tổng quan tình hình kinh doanh</Text>
+                    </View>
                 </View>
                 <View style={styles.headerIconBox}>
                     <TrendingUp size={24} color={COLORS.primary} strokeWidth={2} />

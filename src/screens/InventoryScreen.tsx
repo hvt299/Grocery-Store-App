@@ -44,23 +44,9 @@ export default function InventoryScreen({ navigation, route }: any) {
   const [stockFilter, setStockFilter] = useState<string>('all');
   const [priceSort, setPriceSort] = useState<string>('default');
 
-  const [prodModalVisible, setProdModalVisible] = useState(false);
-  const [editingProdId, setEditingProdId] = useState<string | null>(null);
-  const [prodName, setProdName] = useState('');
-  const [prodPrice, setProdPrice] = useState('');
-  const [prodCostPrice, setProdCostPrice] = useState('');
-  const [prodStock, setProdStock] = useState('');
-  const [prodSku, setProdSku] = useState('');
-
-  const [prodUnit, setProdUnit] = useState('Chưa xác định');
-  const [selectedCat, setSelectedCat] = useState<string>('');
-  const [prodImageUrl, setProdImageUrl] = useState('');
-  const [imagePickerVisible, setImagePickerVisible] = useState(false);
-
   const [catModalVisible, setCatModalVisible] = useState(false);
   const [catName, setCatName] = useState('');
   const [editingCatId, setEditingCatId] = useState<string | null>(null);
-  const [isUploading, setIsUploading] = useState(false);
 
   useEffect(() => {
     fetchCategories();
@@ -94,10 +80,6 @@ export default function InventoryScreen({ navigation, route }: any) {
 
       if (action === 'search') {
         setSearchText(sku);
-      }
-      else if (action === 'sku') {
-        setProdSku(sku);
-        setProdModalVisible(true);
       }
 
       navigation.setParams({ scannedSku: null, scannerAction: null, timestamp: null });
@@ -143,67 +125,12 @@ export default function InventoryScreen({ navigation, route }: any) {
     navigation.navigate('GlobalScanner', { returnScreen: 'Inventory', action: mode });
   };
 
-  const handleImageSelection = () => {
-    setImagePickerVisible(true);
-  };
-
-  const takePhoto = async () => {
-    const { status } = await ImagePicker.requestCameraPermissionsAsync();
-    if (status !== 'granted') {
-      Alert.alert('Cấp quyền', 'App cần quyền camera để chụp ảnh.');
-      return;
-    }
-    let result = await ImagePicker.launchCameraAsync({
-      allowsEditing: true, aspect: [1, 1], quality: 0.5,
-    });
-    if (!result.canceled) uploadSelectedImage(result.assets[0].uri);
-  };
-
-  const pickImage = async () => {
-    let result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ['images'],
-      allowsEditing: true, aspect: [1, 1], quality: 0.5,
-    });
-    if (!result.canceled) uploadSelectedImage(result.assets[0].uri);
-  };
-
-  const uploadSelectedImage = async (uri: string) => {
-    try {
-      setIsUploading(true);
-      const realUrl = await uploadImageToCloudinary(uri);
-      setProdImageUrl(realUrl);
-    } catch (error) { Alert.alert('Lỗi', 'Không thể tải ảnh lên máy chủ.'); }
-    finally { setIsUploading(false); }
-  };
-
   const openAddProduct = () => {
-    setEditingProdId(null); setProdName(''); setProdPrice(''); setProdCostPrice('');
-    setProdStock(''); setProdSku(''); setProdImageUrl('');
-    setProdUnit('Chưa xác định');
-    setSelectedCat(filterCatId || '');
-    setProdModalVisible(true);
+    navigation.navigate('AddEditProduct');
   };
 
   const openEditProduct = (item: any) => {
-    setEditingProdId(item._id); setProdName(item.name); setProdPrice(item.price.toString()); setProdCostPrice((item.costPrice || 0).toString());
-    setProdStock((item.stock || 0).toString()); setProdSku(item.sku || ''); setProdImageUrl(item.imageUrl || '');
-    setProdUnit(item.unit || 'Chưa xác định');
-    setSelectedCat(item.categoryId || '');
-    setProdModalVisible(true);
-  };
-
-  const handleSaveProduct = async () => {
-    if (!prodName || !prodPrice) { Alert.alert('Thiếu thông tin', 'Vui lòng nhập tên và giá bán!'); return; }
-    try {
-      const payload = {
-        name: prodName, price: parseInt(prodPrice), costPrice: parseInt(prodCostPrice) || 0,
-        stock: parseInt(prodStock) || 0, sku: prodSku, unit: prodUnit,
-        category_id: selectedCat === '' ? null : selectedCat,
-        imageUrl: prodImageUrl
-      };
-      if (editingProdId) await updateProduct(editingProdId, payload); else await addProduct(payload);
-      setProdModalVisible(false); await fetchProducts(1, true); Alert.alert('Thành công', 'Đã lưu sản phẩm');
-    } catch (error) { Alert.alert('Lỗi', 'Không lưu được'); }
+    navigation.navigate('AddEditProduct', { product: item });
   };
 
   const handleDeleteProduct = (id: string) => {
@@ -359,7 +286,18 @@ export default function InventoryScreen({ navigation, route }: any) {
         renderItem={renderProduct}
       />
 
-      <TouchableOpacity style={styles.fab} onPress={openAddProduct} activeOpacity={0.8}>
+      <TouchableOpacity
+        style={[
+          styles.fab,
+          {
+            bottom: Platform.OS === 'android'
+              ? (62 + (insets.bottom > 0 ? insets.bottom : 10) + 16)
+              : 98
+          }
+        ]}
+        onPress={openAddProduct}
+        activeOpacity={0.8}
+      >
         <Plus size={32} color="white" strokeWidth={2.5} />
       </TouchableOpacity>
 
@@ -416,98 +354,6 @@ export default function InventoryScreen({ navigation, route }: any) {
             </View>
           </View>
         </View>
-      </Modal>
-
-      {/* MODAL CHỌN NGUỒN ẢNH */}
-      <Modal visible={imagePickerVisible} animationType="slide" transparent={true}>
-        <View style={styles.modalOverlayCart}>
-          <TouchableOpacity style={{ flex: 1 }} onPress={() => setImagePickerVisible(false)} />
-          <View style={[styles.bottomSheetContent, { paddingBottom: Math.max(insets.bottom, 20) }]}>
-            <View style={styles.modalHandle} />
-            <Text style={{ fontSize: 18, fontWeight: '800', textAlign: 'center', marginBottom: 20 }}>Chọn ảnh sản phẩm</Text>
-
-            <TouchableOpacity style={styles.actionSheetBtn} onPress={() => { setImagePickerVisible(false); setTimeout(takePhoto, 300); }}>
-              <Text style={styles.actionSheetBtnText}>Chụp ảnh mới</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity style={styles.actionSheetBtn} onPress={() => { setImagePickerVisible(false); setTimeout(pickImage, 300); }}>
-              <Text style={styles.actionSheetBtnText}>Chọn từ thư viện</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity style={[styles.actionSheetBtn, styles.actionSheetCancelBtn]} onPress={() => setImagePickerVisible(false)}>
-              <Text style={styles.actionSheetCancelText}>Hủy bỏ</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </Modal>
-
-      {/* MODAL THÊM/SỬA SẢN PHẨM MỚI */}
-      <Modal visible={prodModalVisible} animationType="slide" transparent={true}>
-        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.modalOverlayCart}>
-          {/* Nền xám nhấn để thoát */}
-          <TouchableOpacity style={{ flex: 1 }} onPress={() => { Keyboard.dismiss(); setProdModalVisible(false); }} activeOpacity={1} />
-
-          <View style={[styles.modalContent, { maxHeight: '85%' }]}>
-            <View style={styles.modalHeaderRow}>
-              <Text style={styles.modalTitle}>{editingProdId ? 'Sửa món hàng' : 'Thêm món hàng'}</Text>
-            </View>
-
-            {/* BAO BỌC BỞI SCROLL VIEW ĐỂ CUỘN KHI BÀN PHÍM CHE */}
-            <ScrollView style={{ flexShrink: 1 }} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
-
-              <View style={{ flexDirection: 'row', marginBottom: 15 }}>
-                <TouchableOpacity style={styles.imagePickerBtn} onPress={handleImageSelection} disabled={isUploading}>
-                  {isUploading ? (
-                    <ActivityIndicator size="large" color={COLORS.primary} />
-                  ) : prodImageUrl ? (
-                    <Image source={{ uri: prodImageUrl }} style={{ width: '100%', height: '100%', borderRadius: 12 }} />
-                  ) : (
-                    <CameraIcon size={32} color={COLORS.subText} strokeWidth={1.5} />
-                  )}
-                </TouchableOpacity>
-                <View style={{ flex: 1, marginLeft: 15 }}>
-                  <TextInput style={styles.input} placeholder="Tên món hàng (*)" value={prodName} onChangeText={setProdName} />
-                  <View style={styles.skuInputContainer}>
-                    <TextInput style={styles.skuInputBox} placeholder="Mã vạch (SKU)" value={prodSku} onChangeText={setProdSku} />
-                    <TouchableOpacity style={styles.skuScanBtn} onPress={() => { setProdModalVisible(false); setTimeout(() => openScanner('sku'), 300); }}>
-                      <ScanBarcode size={22} color="white" />
-                    </TouchableOpacity>
-                  </View>
-                </View>
-              </View>
-
-              <View style={styles.row}>
-                <TextInput style={[styles.input, { flex: 1, marginRight: 8 }]} placeholder="Giá bán (*)" keyboardType="numeric" value={prodPrice} onChangeText={setProdPrice} />
-                <TextInput style={[styles.input, { flex: 1, marginLeft: 8 }]} placeholder="Giá vốn" keyboardType="numeric" value={prodCostPrice} onChangeText={setProdCostPrice} />
-              </View>
-
-              <View style={styles.row}>
-                <TextInput style={[styles.input, { flex: 1, marginRight: 8 }]} placeholder="Tồn kho" keyboardType="numeric" value={prodStock} onChangeText={setProdStock} />
-                <TextInput style={[styles.input, { flex: 1, marginLeft: 8 }]} placeholder="Đơn vị (Cái, Chai...)" value={prodUnit} onChangeText={setProdUnit} />
-              </View>
-
-              <Text style={styles.label}>Phân loại danh mục:</Text>
-              <View style={styles.pickerContainer}>
-                <Picker selectedValue={selectedCat} onValueChange={(v) => setSelectedCat(v)}>
-                  <Picker.Item label="Chưa phân loại" value="" />
-                  {categories.map((c) => <Picker.Item key={c._id} label={c.name} value={c._id} />)}
-                </Picker>
-              </View>
-
-            </ScrollView>
-
-            {/* NÚT LƯU GIỮ CỐ ĐỊNH Ở DƯỚI */}
-            <View style={[styles.modalButtons, { marginTop: 15, paddingBottom: Math.max(insets.bottom, 10) }]}>
-              <TouchableOpacity style={[styles.btn, styles.btnCancel]} onPress={() => setProdModalVisible(false)}>
-                <Text style={styles.btnTextGray}>Hủy bỏ</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={[styles.btn, styles.btnSave]} onPress={handleSaveProduct}>
-                <Text style={styles.btnTextWhite}>Lưu sản phẩm</Text>
-              </TouchableOpacity>
-            </View>
-
-          </View>
-        </KeyboardAvoidingView>
       </Modal>
 
       {/* --- MODAL DANH MỤC --- */}

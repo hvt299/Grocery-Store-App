@@ -2,49 +2,44 @@ import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, Dimensions } from 'react-native';
 import NetInfo from '@react-native-community/netinfo';
 import { Ionicons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { COLORS } from '../constants/theme';
 
 const { width } = Dimensions.get('window');
 
 export default function NetworkStatus() {
     const [isConnected, setIsConnected] = useState<boolean | null>(true);
+    const insets = useSafeAreaInsets();
 
     useEffect(() => {
-        // Lắng nghe trạng thái mạng
         const unsubscribe = NetInfo.addEventListener(state => {
             setIsConnected(state.isConnected);
         });
-
         return () => unsubscribe();
     }, []);
 
-    // Nếu có mạng thì không hiện gì cả (ẩn đi)
     if (isConnected) return null;
 
-    // Nếu mất mạng -> Hiện thanh đỏ
     return (
-        <View style={styles.container}>
-            <Ionicons name="wifi-outline" size={20} color="white" />
-            <Text style={styles.text}>Không có kết nối Internet. Đang kiểm tra...</Text>
+        <View style={[styles.container, { paddingTop: Math.max(insets.top, 10) }]}>
+            <Ionicons name="wifi-outline" size={18} color="white" />
+            <Text style={styles.text}>Mất kết nối mạng. Đang chờ khôi phục...</Text>
         </View>
     );
 }
 
 const styles = StyleSheet.create({
     container: {
-        backgroundColor: '#FF3B30', // Màu đỏ báo động
+        backgroundColor: COLORS.danger,
         width: width,
-        paddingVertical: 10,
+        paddingBottom: 10,
         flexDirection: 'row',
         justifyContent: 'center',
         alignItems: 'center',
-        position: 'absolute', // Trôi nổi trên cùng
-        top: 0, // Đặt ở đỉnh màn hình (dưới status bar nếu dùng SafeAreaView)
-        zIndex: 9999, // Đè lên mọi thứ
+        position: 'absolute',
+        top: 0,
+        zIndex: 9999,
+        shadowColor: "#000", shadowOpacity: 0.2, shadowRadius: 5, elevation: 5
     },
-    text: {
-        color: 'white',
-        fontWeight: 'bold',
-        marginLeft: 10,
-        fontSize: 14,
-    },
+    text: { color: 'white', fontWeight: '600', marginLeft: 8, fontSize: 14 }
 });

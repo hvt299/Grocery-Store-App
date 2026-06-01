@@ -1,6 +1,6 @@
 import React, { createContext, useState, useEffect, ReactNode } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Alert } from 'react-native';
+import { Alert, DeviceEventEmitter } from 'react-native';
 import { loginApi } from '../services/authService';
 
 export const AuthContext = createContext<any>(null);
@@ -11,6 +11,18 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
     useEffect(() => {
         checkToken();
+
+        const subscription = DeviceEventEmitter.addListener('FORCE_LOGOUT', () => {
+            Alert.alert(
+                'Phiên đăng nhập hết hạn',
+                'Vui lòng đăng nhập lại để tiếp tục sử dụng!'
+            );
+            logout();
+        });
+
+        return () => {
+            subscription.remove();
+        };
     }, []);
 
     const checkToken = async () => {

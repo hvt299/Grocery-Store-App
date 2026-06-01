@@ -47,14 +47,11 @@ const CustomScanButton = () => {
 };
 
 function MyCustomTabBar({ state, descriptors, navigation }: any) {
-    const isStackFocused = useIsFocused();
     const insets = useSafeAreaInsets();
-
     const androidBottomGap = insets.bottom > 0 ? insets.bottom : 10;
 
     return (
         <View
-            key={isStackFocused ? 'tabbar-focus-active' : 'tabbar-focus-inactive'}
             style={[
                 styles.tabBarContainer,
                 {

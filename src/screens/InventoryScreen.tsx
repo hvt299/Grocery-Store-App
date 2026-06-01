@@ -1,29 +1,89 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import {
   View, Text, FlatList, StyleSheet, TouchableOpacity,
-  Modal, TextInput, Alert, KeyboardAvoidingView, Platform, RefreshControl, Image,
+  Modal, TextInput, Alert, KeyboardAvoidingView, Platform, RefreshControl,
   TouchableWithoutFeedback, Keyboard, ActivityIndicator, ScrollView
 } from 'react-native';
-import { Picker } from '@react-native-picker/picker';
+import { Image } from 'expo-image';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import NetInfo from '@react-native-community/netinfo';
 import { StatusBar } from 'expo-status-bar';
-import * as ImagePicker from 'expo-image-picker';
 
 import {
   FolderOpen, Plus, Pencil, Trash2, Camera as CameraIcon,
-  ScanBarcode, Check, X, RefreshCw, Filter
+  ScanBarcode, Check, X, RefreshCw
 } from 'lucide-react-native';
 
 import {
-  getProducts, getCategories, addProduct, deleteProduct, updateProduct,
+  getProducts, getCategories, deleteProduct,
   addCategory, updateCategory, deleteCategory
 } from '../services/productService';
 import { socket } from '../lib/socket';
-import { uploadImageToCloudinary } from '../services/productService';
 import { formatCurrency } from '../utils/format';
 import { COLORS, SPACING } from '../constants/theme';
 import GlobalSearchBar from '../components/GlobalSearchBar';
+
+const ProductCard = React.memo(({ item, onEdit, onDelete }: { item: any, onEdit: any, onDelete: any }) => {
+  const getStockColor = (stock: number) => {
+    if (stock <= 0) return COLORS.danger;
+    if (stock <= 10) return '#FF9500';
+    return COLORS.success;
+  };
+
+  return (
+    <View style={styles.itemCard}>
+      <View style={styles.cardMainRow}>
+        <View style={styles.imgContainer}>
+          {item.imageUrl ? (
+            <Image
+              source={{ uri: item.imageUrl }}
+              style={styles.itemImg}
+              contentFit="cover"
+              transition={200}
+              cachePolicy="memory-disk"
+            />
+          ) : (
+            <View style={styles.itemImgPlaceholder}><Text style={styles.itemImgText}>{item.name.charAt(0).toUpperCase()}</Text></View>
+          )}
+        </View>
+
+        <View style={{ flex: 1, marginLeft: 12 }}>
+          <Text style={styles.itemName} numberOfLines={1}>{item.name}</Text>
+          <Text style={styles.itemCategory} numberOfLines={1}>{item.categories?.name || 'Chưa phân loại'}</Text>
+
+          <View style={styles.skuRow}>
+            <ScanBarcode size={14} color={COLORS.subText} />
+            <Text style={[styles.skuText, !item.sku && { fontStyle: 'italic', color: '#B0B0B0' }]} numberOfLines={1}>
+              {item.sku ? item.sku : 'Chưa có mã'}
+            </Text>
+          </View>
+        </View>
+
+        <View style={{ alignItems: 'flex-end', justifyContent: 'center' }}>
+          <Text style={styles.itemPrice}>{formatCurrency(item.price)}</Text>
+          <Text style={styles.itemCost}>Vốn: {formatCurrency(item.costPrice || 0)}</Text>
+        </View>
+      </View>
+
+      <View style={styles.cardActionRow}>
+        <View style={[styles.stockBadge, { backgroundColor: getStockColor(item.stock) + '20' }]}>
+          <Text style={[styles.stockBadgeText, { color: getStockColor(item.stock) }]}>
+            {item.stock <= 0 ? 'Hết hàng' : `Tồn kho: ${item.stock} ${item.unit || ''}`}
+          </Text>
+        </View>
+
+        <View style={{ flexDirection: 'row' }}>
+          <TouchableOpacity style={styles.actionBtn} onPress={() => onEdit(item)}>
+            <Pencil size={18} color={COLORS.primary} strokeWidth={2} />
+          </TouchableOpacity>
+          <TouchableOpacity style={[styles.actionBtn, { marginRight: 0 }]} onPress={() => onDelete(item._id)}>
+            <Trash2 size={18} color={COLORS.danger} strokeWidth={2} />
+          </TouchableOpacity>
+        </View>
+      </View>
+    </View>
+  );
+});
 
 export default function InventoryScreen({ navigation, route }: any) {
   const insets = useSafeAreaInsets();
@@ -114,11 +174,22 @@ export default function InventoryScreen({ navigation, route }: any) {
     }
   };
 
-  const onRefresh = async () => {
+  const onRefresh = () => {
     setRefreshing(true);
-    await fetchCategories();
-    await fetchProducts(1, true);
-    setRefreshing(false);
+
+    setTimeout(async () => {
+      try {
+        await fetchCategories();
+        await fetchProducts(1, true);
+
+        setHasNewData(false);
+
+      } catch (error) {
+        console.log('Lỗi trong quá trình pull-to-refresh:', error);
+      } finally {
+        setRefreshing(false);
+      }
+    }, 400);
   };
 
   const openScanner = (mode: 'search' | 'sku') => {
@@ -150,12 +221,6 @@ export default function InventoryScreen({ navigation, route }: any) {
     Alert.alert('Xóa danh mục?', 'Danh mục sẽ bị ẩn đi.', [{ text: 'Hủy', style: 'cancel' }, { text: 'Xóa', style: 'destructive', onPress: async () => { await deleteCategory(id); await fetchCategories(); } }]);
   };
 
-  const getStockColor = (stock: number) => {
-    if (stock <= 0) return COLORS.danger;
-    if (stock <= 10) return '#FF9500';
-    return COLORS.success;
-  };
-
   const displayedProducts = useMemo(() => {
     let result = [...products];
     if (stockFilter === 'in_stock') result = result.filter(p => p.stock > 10);
@@ -172,53 +237,13 @@ export default function InventoryScreen({ navigation, route }: any) {
     setStockFilter('all'); setPriceSort('default'); setFilterCatId(null);
   };
 
-  const renderProduct = ({ item }: { item: any }) => (
-    <View style={styles.itemCard}>
-      <View style={styles.cardMainRow}>
-        <View style={styles.imgContainer}>
-          {item.imageUrl ? (
-            <Image source={{ uri: item.imageUrl }} style={styles.itemImg} resizeMode="cover" />
-          ) : (
-            <View style={styles.itemImgPlaceholder}><Text style={styles.itemImgText}>{item.name.charAt(0).toUpperCase()}</Text></View>
-          )}
-        </View>
-
-        <View style={{ flex: 1, marginLeft: 12 }}>
-          <Text style={styles.itemName} numberOfLines={1}>{item.name}</Text>
-          <Text style={styles.itemCategory} numberOfLines={1}>{item.categories?.name || 'Chưa phân loại'}</Text>
-
-          <View style={styles.skuRow}>
-            <ScanBarcode size={14} color={COLORS.subText} />
-            <Text style={[styles.skuText, !item.sku && { fontStyle: 'italic', color: '#B0B0B0' }]} numberOfLines={1}>
-              {item.sku ? item.sku : 'Chưa có mã'}
-            </Text>
-          </View>
-        </View>
-
-        <View style={{ alignItems: 'flex-end', justifyContent: 'center' }}>
-          <Text style={styles.itemPrice}>{formatCurrency(item.price)}</Text>
-          <Text style={styles.itemCost}>Vốn: {formatCurrency(item.costPrice || 0)}</Text>
-        </View>
-      </View>
-
-      <View style={styles.cardActionRow}>
-        <View style={[styles.stockBadge, { backgroundColor: getStockColor(item.stock) + '20' }]}>
-          <Text style={[styles.stockBadgeText, { color: getStockColor(item.stock) }]}>
-            {item.stock <= 0 ? 'Hết hàng' : `Tồn kho: ${item.stock} ${item.unit || ''}`}
-          </Text>
-        </View>
-
-        <View style={{ flexDirection: 'row' }}>
-          <TouchableOpacity style={styles.actionBtn} onPress={() => openEditProduct(item)}>
-            <Pencil size={18} color={COLORS.primary} strokeWidth={2} />
-          </TouchableOpacity>
-          <TouchableOpacity style={[styles.actionBtn, { marginRight: 0 }]} onPress={() => handleDeleteProduct(item._id)}>
-            <Trash2 size={18} color={COLORS.danger} strokeWidth={2} />
-          </TouchableOpacity>
-        </View>
-      </View>
-    </View>
-  );
+  const renderItem = React.useCallback(({ item }: { item: any }) => (
+    <ProductCard
+      item={item}
+      onEdit={openEditProduct}
+      onDelete={handleDeleteProduct}
+    />
+  ), []);
 
   return (
     <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
@@ -248,16 +273,6 @@ export default function InventoryScreen({ navigation, route }: any) {
         </TouchableOpacity>
       </View>
 
-      {/* THÔNG BÁO DỮ LIỆU */}
-      {hasNewData && (
-        <View style={styles.newDataContainer}>
-          <TouchableOpacity style={styles.newDataPill} onPress={() => { setHasNewData(false); fetchProducts(1, true); }}>
-            <RefreshCw size={14} color="white" style={{ marginRight: 6 }} />
-            <Text style={styles.newDataText}>Có thay đổi kho hàng. Chạm để tải lại!</Text>
-          </TouchableOpacity>
-        </View>
-      )}
-
       {/* BỘ LỌC NHANH */}
       <View style={{ paddingBottom: 10 }}>
         <FlatList
@@ -275,15 +290,35 @@ export default function InventoryScreen({ navigation, route }: any) {
         />
       </View>
 
+      {/* THÔNG BÁO DỮ LIỆU */}
+      {hasNewData && (
+        <View style={styles.inlineNewDataContainer}>
+          <TouchableOpacity style={styles.newDataPill} onPress={() => { setHasNewData(false); fetchProducts(1, true); }}>
+            <RefreshCw size={14} color="white" style={{ marginRight: 6 }} />
+            <Text style={styles.newDataText}>Có thay đổi kho hàng. Chạm để tải lại!</Text>
+          </TouchableOpacity>
+        </View>
+      )}
+
       {/* DANH SÁCH */}
       <FlatList
-        data={displayedProducts} keyExtractor={(item) => item._id.toString()}
-        contentContainerStyle={{ paddingHorizontal: SPACING, paddingBottom: 120 }} showsVerticalScrollIndicator={false}
+        data={displayedProducts}
+        keyExtractor={(item) => item._id.toString()}
+        contentContainerStyle={{ paddingHorizontal: SPACING, paddingBottom: 120 }}
+        showsVerticalScrollIndicator={false}
+
+        initialNumToRender={8}
+        maxToRenderPerBatch={10}
+        windowSize={5}
+        removeClippedSubviews={Platform.OS === 'android'}
+
         ListEmptyComponent={<Text style={{ textAlign: 'center', marginTop: 40, color: COLORS.subText, fontStyle: 'italic' }}>Không có sản phẩm nào</Text>}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[COLORS.primary]} tintColor={COLORS.primary} />}
-        onEndReached={loadMore} onEndReachedThreshold={0.5}
+        onEndReached={loadMore}
+        onEndReachedThreshold={0.5}
         ListFooterComponent={loadingMore ? <ActivityIndicator size="small" color={COLORS.primary} style={{ margin: 20 }} /> : null}
-        renderItem={renderProduct}
+
+        renderItem={renderItem}
       />
 
       <TouchableOpacity
@@ -466,7 +501,15 @@ const styles = StyleSheet.create({
   catItemRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: '#F5F5F5' },
   catItemText: { fontSize: 16, color: COLORS.text, fontWeight: '600' },
 
-  newDataContainer: { position: 'absolute', top: 60, width: '100%', alignItems: 'center', zIndex: 10 },
+  inlineNewDataContainer: {
+    width: '100%',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 5,
+    marginBottom: 12,
+    paddingHorizontal: SPACING
+  },
+
   newDataPill: { flexDirection: 'row', backgroundColor: COLORS.primary, paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20, alignItems: 'center', shadowColor: '#000', shadowOpacity: 0.2, shadowRadius: 5, elevation: 5 },
   newDataText: { color: 'white', fontSize: 13, fontWeight: 'bold' },
 

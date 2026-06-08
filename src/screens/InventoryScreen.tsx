@@ -2,7 +2,7 @@ import React, { useEffect, useState, useMemo } from 'react';
 import {
   View, Text, FlatList, StyleSheet, TouchableOpacity,
   Modal, TextInput, Alert, KeyboardAvoidingView, Platform, RefreshControl,
-  TouchableWithoutFeedback, Keyboard, ActivityIndicator, ScrollView
+  TouchableWithoutFeedback, Keyboard, ActivityIndicator, ScrollView, Animated
 } from 'react-native';
 import { Image } from 'expo-image';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -22,6 +22,40 @@ import { socket } from '../lib/socket';
 import { formatCurrency } from '../utils/format';
 import { COLORS, SPACING } from '../constants/theme';
 import GlobalSearchBar from '../components/GlobalSearchBar';
+
+const SkeletonProductCard = () => {
+  const fadeAnim = React.useRef(new Animated.Value(0.3)).current;
+  React.useEffect(() => {
+    Animated.loop(Animated.sequence([
+      Animated.timing(fadeAnim, { toValue: 1, duration: 800, useNativeDriver: true }),
+      Animated.timing(fadeAnim, { toValue: 0.3, duration: 800, useNativeDriver: true })
+    ])).start();
+  }, [fadeAnim]);
+
+  return (
+    <Animated.View style={[styles.itemCard, { opacity: fadeAnim }]}>
+      <View style={styles.cardMainRow}>
+        <View style={{ width: 64, height: 64, borderRadius: 14, backgroundColor: '#E5E5EA' }} />
+        <View style={{ flex: 1, marginLeft: 12 }}>
+          <View style={{ width: '80%', height: 16, backgroundColor: '#E5E5EA', borderRadius: 4, marginBottom: 8 }} />
+          <View style={{ width: '50%', height: 12, backgroundColor: '#E5E5EA', borderRadius: 4, marginBottom: 12 }} />
+          <View style={{ width: 40, height: 14, backgroundColor: '#E5E5EA', borderRadius: 4 }} />
+        </View>
+        <View style={{ alignItems: 'flex-end', justifyContent: 'center' }}>
+          <View style={{ width: 60, height: 16, backgroundColor: '#E5E5EA', borderRadius: 4, marginBottom: 8 }} />
+          <View style={{ width: 40, height: 12, backgroundColor: '#E5E5EA', borderRadius: 4 }} />
+        </View>
+      </View>
+      <View style={[styles.cardActionRow, { borderTopWidth: 1, borderTopColor: '#F0F4F8', paddingTop: 12 }]}>
+        <View style={{ width: 80, height: 24, backgroundColor: '#E5E5EA', borderRadius: 8 }} />
+        <View style={{ flexDirection: 'row' }}>
+          <View style={{ width: 34, height: 34, backgroundColor: '#E5E5EA', borderRadius: 10, marginRight: 10 }} />
+          <View style={{ width: 34, height: 34, backgroundColor: '#E5E5EA', borderRadius: 10 }} />
+        </View>
+      </View>
+    </Animated.View>
+  );
+};
 
 const ProductCard = React.memo(({ item, onEdit, onDelete }: { item: any, onEdit: any, onDelete: any }) => {
   const getStockColor = (stock: number) => {
@@ -94,6 +128,7 @@ export default function InventoryScreen({ navigation, route }: any) {
 
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
+  const [initialLoading, setInitialLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [searchText, setSearchText] = useState('');
   const [filterCatId, setFilterCatId] = useState<string | null>(null);
@@ -154,6 +189,7 @@ export default function InventoryScreen({ navigation, route }: any) {
   };
 
   const fetchProducts = async (pageNumber = 1, isReset = false) => {
+    if (isReset && !refreshing) setInitialLoading(true);
     try {
       const res = await getProducts(pageNumber, 20, searchText, filterCatId);
       const newData = res.data || [];
@@ -164,6 +200,7 @@ export default function InventoryScreen({ navigation, route }: any) {
       setTotalPages(res.totalPages);
       setTotalProducts(res.total);
     } catch (error) { console.log('Lỗi tải sản phẩm'); }
+    finally { setInitialLoading(false); }
   };
 
   const loadMore = async () => {
@@ -301,25 +338,31 @@ export default function InventoryScreen({ navigation, route }: any) {
       )}
 
       {/* DANH SÁCH */}
-      <FlatList
-        data={displayedProducts}
-        keyExtractor={(item) => item._id.toString()}
-        contentContainerStyle={{ paddingHorizontal: SPACING, paddingBottom: 120 }}
-        showsVerticalScrollIndicator={false}
+      {initialLoading ? (
+        <View style={{ paddingHorizontal: SPACING, paddingTop: 10 }}>
+          <SkeletonProductCard /><SkeletonProductCard /><SkeletonProductCard /><SkeletonProductCard />
+        </View>
+      ) : (
+        <FlatList
+          data={displayedProducts}
+          keyExtractor={(item) => item._id.toString()}
+          contentContainerStyle={{ paddingHorizontal: SPACING, paddingBottom: 120 }}
+          showsVerticalScrollIndicator={false}
 
-        initialNumToRender={8}
-        maxToRenderPerBatch={10}
-        windowSize={5}
-        removeClippedSubviews={Platform.OS === 'android'}
+          initialNumToRender={8}
+          maxToRenderPerBatch={10}
+          windowSize={5}
+          removeClippedSubviews={Platform.OS === 'android'}
 
-        ListEmptyComponent={<Text style={{ textAlign: 'center', marginTop: 40, color: COLORS.subText, fontStyle: 'italic' }}>Không có sản phẩm nào</Text>}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[COLORS.primary]} tintColor={COLORS.primary} />}
-        onEndReached={loadMore}
-        onEndReachedThreshold={0.5}
-        ListFooterComponent={loadingMore ? <ActivityIndicator size="small" color={COLORS.primary} style={{ margin: 20 }} /> : null}
+          ListEmptyComponent={<Text style={{ textAlign: 'center', marginTop: 40, color: COLORS.subText, fontStyle: 'italic' }}>Không có sản phẩm nào</Text>}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[COLORS.primary]} tintColor={COLORS.primary} />}
+          onEndReached={loadMore}
+          onEndReachedThreshold={0.5}
+          ListFooterComponent={loadingMore ? <ActivityIndicator size="small" color={COLORS.primary} style={{ margin: 20 }} /> : null}
 
-        renderItem={renderItem}
-      />
+          renderItem={renderItem}
+        />
+      )}
 
       <TouchableOpacity
         style={[

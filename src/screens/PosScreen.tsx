@@ -11,6 +11,7 @@ import { StatusBar } from 'expo-status-bar';
 import { Store, ShoppingCart, X, Plus, Minus, Pencil } from 'lucide-react-native';
 
 import { getProducts, getCategories, createInvoice } from '../services/productService';
+import { printReceipt } from '../services/printerService';
 import { formatCurrency } from '../utils/format';
 import { socket } from '../lib/socket';
 import { COLORS, SPACING } from '../constants/theme';
@@ -110,7 +111,18 @@ export default function PosScreen({ navigation, route }: any) {
       { text: 'Hủy', style: 'cancel', onPress: () => setCartVisible(true) },
       {
         text: 'OK', onPress: async () => {
-          try { await createInvoice(cart, totalAmount); setCart([]); Alert.alert("Thành công!", "Đã chốt đơn và trừ kho."); fetchData(1, true); }
+          try {
+            const invoiceId = await createInvoice(cart, totalAmount);
+
+            await printReceipt({
+              invoiceId: invoiceId,
+              totalAmount: totalAmount,
+              items: cart
+            });
+
+            setCart([]);
+            fetchData(1, true);
+          }
           catch (e) { Alert.alert("Lỗi", "Có lỗi xảy ra khi chốt đơn."); }
         }
       }
@@ -227,7 +239,8 @@ export default function PosScreen({ navigation, route }: any) {
 
       {/* THANH GIỎ HÀNG */}
       {cart.length > 0 && (
-        <View style={styles.checkoutBarWrapper}>
+        <View style={[styles.checkoutBarWrapper, { bottom: insets.bottom + 100 }
+        ]}>
           <TouchableOpacity style={styles.checkoutBar} onPress={() => setCartVisible(true)} activeOpacity={0.9}>
             <View style={styles.checkoutBarLeft}>
               <View style={styles.checkoutIcon}>
@@ -363,7 +376,7 @@ const styles = StyleSheet.create({
   addBtnDisabled: { backgroundColor: '#F5F5F5' },
   addBtnActive: { backgroundColor: COLORS.primary },
 
-  checkoutBarWrapper: { position: 'absolute', bottom: 100, left: SPACING, right: SPACING, zIndex: 10 },
+  checkoutBarWrapper: { position: 'absolute', left: SPACING, right: SPACING, zIndex: 10 },
   checkoutBar: { flexDirection: 'row', backgroundColor: COLORS.primary, borderRadius: 20, padding: 12, paddingHorizontal: 16, alignItems: 'center', justifyContent: 'space-between', shadowColor: COLORS.primary, shadowOpacity: 0.4, shadowRadius: 10, shadowOffset: { width: 0, height: 5 }, elevation: 8 },
   checkoutBarLeft: { flexDirection: 'row', alignItems: 'center' },
   checkoutIcon: { width: 44, height: 44, backgroundColor: 'white', borderRadius: 14, justifyContent: 'center', alignItems: 'center' },

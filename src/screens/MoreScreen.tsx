@@ -78,12 +78,12 @@ export default function MoreScreen() {
                     <MenuItem
                         icon={Printer} iconColor="#F59E0B" iconBg="#FEF3C7"
                         title="Máy in hóa đơn" subtitle="Kết nối Bluetooth/LAN"
-                        onPress={() => Alert.alert('Thông báo', 'Mô-đun máy in sẽ được cập nhật sau!')}
+                        onPress={() => navigation.navigate('PrinterSettings' as any)}
                     />
                     <MenuItem
                         icon={Settings} iconColor="#8B5CF6" iconBg="#EDE9FE"
                         title="Cài đặt chung"
-                        onPress={() => Alert.alert('Thông báo', 'Tính năng cài đặt đang được phát triển!')}
+                        onPress={() => navigation.navigate('Settings' as any)}
                         isLast={true}
                     />
                 </View>

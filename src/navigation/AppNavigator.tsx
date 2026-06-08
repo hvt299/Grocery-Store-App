@@ -20,6 +20,8 @@ import AnalyticsScreen from '../screens/AnalyticsScreen';
 import MoreScreen from '../screens/MoreScreen';
 import GlobalScannerScreen from '../screens/GlobalScannerScreen';
 import AddEditProductScreen from '../screens/AddEditProductScreen';
+import PrinterSettingsScreen from '../screens/PrinterSettingsScreen';
+import SettingsScreen from '../screens/SettingsScreen';
 
 export type TabParamList = {
     Sell: undefined; Inventory: undefined; Scan: undefined;
@@ -65,7 +67,6 @@ function MyCustomTabBar({ state, descriptors, navigation }: any) {
                 const label = options.tabBarLabel !== undefined ? options.tabBarLabel : options.title !== undefined ? options.title : route.name;
                 const isFocused = state.index === index;
 
-                if (route.name === 'Dashboard') return null;
                 if (route.name === 'Scan') return <CustomScanButton key={route.key} />;
 
                 const onPress = () => {
@@ -115,7 +116,6 @@ const MainTabs = () => (
         <Tab.Screen name="Scan" component={EmptyScreen} />
         <Tab.Screen name="History" component={InvoiceScreen} options={{ tabBarLabel: 'Lịch sử' }} />
         <Tab.Screen name="More" component={MoreScreen} options={{ tabBarLabel: 'Thêm' }} />
-        <Tab.Screen name="Dashboard" component={AnalyticsScreen} />
     </Tab.Navigator>
 );
 
@@ -124,6 +124,9 @@ const AppRoot = () => (
         <RootStack.Screen name="MainTabs" component={MainTabs} />
         <RootStack.Screen name="GlobalScanner" component={GlobalScannerScreen} />
         <RootStack.Screen name="AddEditProduct" component={AddEditProductScreen} />
+        <RootStack.Screen name="PrinterSettings" component={PrinterSettingsScreen} />
+        <RootStack.Screen name="Settings" component={SettingsScreen} />
+        <RootStack.Screen name="Dashboard" component={AnalyticsScreen} />
     </RootStack.Navigator>
 );
 

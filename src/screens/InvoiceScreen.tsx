@@ -2,34 +2,45 @@ import React, { useState, useEffect, useMemo } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity,
   Modal, ActivityIndicator, SectionList, Alert,
-  RefreshControl
+  RefreshControl, Animated
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import NetInfo from '@react-native-community/netinfo';
 import { StatusBar } from 'expo-status-bar';
 
-import { Receipt, Trash2, X, Clock, FileText } from 'lucide-react-native';
+import { Receipt, Trash2, X, Clock, FileText, Printer } from 'lucide-react-native';
 
 import { getInvoices, deleteInvoice } from '../services/productService';
+import { printReceipt } from '../services/printerService';
 import { formatCurrency, formatDate } from '../utils/format';
 import { socket } from '../lib/socket';
 import { COLORS, SPACING } from '../constants/theme';
 
-const SkeletonRow = () => (
-  <View style={[styles.card, { opacity: 0.6 }]}>
-    <View style={styles.cardRow}>
-      <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-        <View style={[styles.iconBox, { backgroundColor: '#F0F4F8' }]} />
-        <View style={{ marginLeft: 12 }}>
-          <View style={{ width: 120, height: 14, backgroundColor: '#E5E5EA', borderRadius: 4, marginBottom: 8 }} />
-          <View style={{ width: 60, height: 10, backgroundColor: '#E5E5EA', borderRadius: 4 }} />
+const SkeletonRow = () => {
+  const fadeAnim = React.useRef(new Animated.Value(0.3)).current;
+  React.useEffect(() => {
+    Animated.loop(Animated.sequence([
+      Animated.timing(fadeAnim, { toValue: 1, duration: 800, useNativeDriver: true }),
+      Animated.timing(fadeAnim, { toValue: 0.3, duration: 800, useNativeDriver: true })
+    ])).start();
+  }, [fadeAnim]);
+
+  return (
+    <Animated.View style={[styles.card, { opacity: fadeAnim }]}>
+      <View style={styles.cardRow}>
+        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+          <View style={[styles.iconBox, { backgroundColor: '#F0F4F8' }]} />
+          <View style={{ marginLeft: 12 }}>
+            <View style={{ width: 120, height: 14, backgroundColor: '#E5E5EA', borderRadius: 4, marginBottom: 8 }} />
+            <View style={{ width: 60, height: 10, backgroundColor: '#E5E5EA', borderRadius: 4 }} />
+          </View>
         </View>
+        <View style={{ width: 80, height: 16, backgroundColor: '#E5E5EA', borderRadius: 4 }} />
       </View>
-      <View style={{ width: 80, height: 16, backgroundColor: '#E5E5EA', borderRadius: 4 }} />
-    </View>
-  </View>
-);
+    </Animated.View>
+  );
+};
 
 export default function HistoryScreen() {
   const insets = useSafeAreaInsets();
@@ -243,6 +254,18 @@ export default function HistoryScreen() {
                   <Text style={styles.totalLabel}>TỔNG CỘNG</Text>
                   <Text style={styles.totalValue}>{formatCurrency(selectedInvoice.totalAmount)}</Text>
                 </View>
+
+                {/* --- NÚT IN LẠI HÓA ĐƠN --- */}
+                <TouchableOpacity
+                  style={[styles.deleteBtn, { backgroundColor: COLORS.primary, borderColor: COLORS.primary, marginBottom: 12 }]}
+                  onPress={() => {
+                    printReceipt(selectedInvoice); 
+                  }}
+                  activeOpacity={0.8}
+                >
+                  <Printer size={20} color="white" style={{ marginRight: 8 }} />
+                  <Text style={[styles.deleteBtnText, { color: 'white' }]}>In lại hóa đơn</Text>
+                </TouchableOpacity>
 
                 {/* NÚT HỦY ĐƠN HÀNG */}
                 <TouchableOpacity

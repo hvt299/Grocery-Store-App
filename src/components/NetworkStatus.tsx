@@ -1,13 +1,16 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useContext } from 'react';
 import { View, Text, StyleSheet, Dimensions } from 'react-native';
 import NetInfo from '@react-native-community/netinfo';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { COLORS } from '../constants/theme';
+import { ThemeContext } from '../context/ThemeContext';
 
 const { width } = Dimensions.get('window');
 
 export default function NetworkStatus() {
+    const { colors } = useContext(ThemeContext);
+    const styles = createStyles(colors);
+    
     const [isConnected, setIsConnected] = useState<boolean | null>(true);
     const insets = useSafeAreaInsets();
 
@@ -28,9 +31,9 @@ export default function NetworkStatus() {
     );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: any) => StyleSheet.create({
     container: {
-        backgroundColor: COLORS.danger,
+        backgroundColor: colors.danger,
         width: width,
         paddingBottom: 10,
         flexDirection: 'row',

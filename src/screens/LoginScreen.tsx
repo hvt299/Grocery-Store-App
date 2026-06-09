@@ -9,9 +9,13 @@ import { StatusBar } from 'expo-status-bar';
 import { Store, User, Lock, Eye, EyeOff } from 'lucide-react-native';
 
 import { AuthContext } from '../context/AuthContext';
-import { COLORS, SPACING } from '../constants/theme';
+import { SPACING } from '../constants/theme';
+import { ThemeContext } from '../context/ThemeContext';
 
 export default function LoginScreen() {
+    const { colors, isDark } = useContext(ThemeContext);
+    const styles = createStyles(colors);
+
     const [username, setUsername] = useState('');
     const [password, setPassword] = useState('');
     const [showPassword, setShowPassword] = useState(false);
@@ -35,7 +39,7 @@ export default function LoginScreen() {
     return (
         <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
             <SafeAreaView style={styles.container}>
-                <StatusBar style="dark" />
+                <StatusBar style={isDark ? "light" : "dark"} />
 
                 <View style={{ flex: 1 }}>
                     <View style={styles.content}>
@@ -57,7 +61,7 @@ export default function LoginScreen() {
                             <View style={styles.inputGroup}>
                                 <User
                                     size={20}
-                                    color={COLORS.subText}
+                                    color={colors.subText}
                                     style={styles.inputIcon}
                                 />
                                 <TextInput
@@ -66,7 +70,7 @@ export default function LoginScreen() {
                                     value={username}
                                     onChangeText={setUsername}
                                     autoCapitalize="none"
-                                    placeholderTextColor={COLORS.subText}
+                                    placeholderTextColor={colors.subText}
                                     returnKeyType="next"
                                     onSubmitEditing={() => passwordRef.current?.focus()}
                                 />
@@ -75,7 +79,7 @@ export default function LoginScreen() {
                             <View style={styles.inputGroup}>
                                 <Lock
                                     size={20}
-                                    color={COLORS.subText}
+                                    color={colors.subText}
                                     style={styles.inputIcon}
                                 />
                                 <TextInput
@@ -86,7 +90,7 @@ export default function LoginScreen() {
                                     onChangeText={setPassword}
                                     secureTextEntry={!showPassword}
                                     autoCapitalize="none"
-                                    placeholderTextColor={COLORS.subText}
+                                    placeholderTextColor={colors.subText}
                                     returnKeyType="done"
                                     onSubmitEditing={handleLogin}
                                 />
@@ -96,9 +100,9 @@ export default function LoginScreen() {
                                     style={styles.eyeBtn}
                                 >
                                     {showPassword ? (
-                                        <EyeOff size={20} color={COLORS.subText} />
+                                        <EyeOff size={20} color={colors.subText} />
                                     ) : (
-                                        <Eye size={20} color={COLORS.subText} />
+                                        <Eye size={20} color={colors.subText} />
                                     )}
                                 </TouchableOpacity>
                             </View>
@@ -130,50 +134,50 @@ export default function LoginScreen() {
     );
 }
 
-const styles = StyleSheet.create({
-    container: { flex: 1, backgroundColor: COLORS.background },
+const createStyles = (colors: any) => StyleSheet.create({
+    container: { flex: 1, backgroundColor: colors.background },
     content: { flex: 1, justifyContent: 'center', padding: SPACING * 1.5 },
 
     headerContainer: { alignItems: 'center', marginBottom: 40 },
     logoBox: {
         width: 88, height: 88,
-        backgroundColor: COLORS.primary,
+        backgroundColor: colors.primary,
         borderRadius: 24,
         justifyContent: 'center', alignItems: 'center',
         marginBottom: 20,
-        shadowColor: COLORS.primary, shadowOpacity: 0.4, shadowRadius: 15, elevation: 8
+        shadowColor: colors.primary, shadowOpacity: 0.4, shadowRadius: 15, elevation: 8
     },
-    title: { fontSize: 28, fontWeight: '900', color: COLORS.text, letterSpacing: 0.5 },
-    subtitle: { fontSize: 15, color: COLORS.subText, marginTop: 8, fontWeight: '500' },
+    title: { fontSize: 28, fontWeight: '900', color: colors.text, letterSpacing: 0.5 },
+    subtitle: { fontSize: 15, color: colors.subText, marginTop: 8, fontWeight: '500' },
 
     formContainer: {
-        backgroundColor: COLORS.card,
+        backgroundColor: colors.card,
         padding: 24,
         borderRadius: 24,
         shadowColor: "#000", shadowOpacity: 0.04, shadowRadius: 20, elevation: 4
     },
     inputGroup: {
         flexDirection: 'row', alignItems: 'center',
-        backgroundColor: COLORS.inputBg || '#F5F7FA',
+        backgroundColor: colors.inputBg,
         borderRadius: 16,
         marginBottom: 16,
         paddingHorizontal: 16,
         height: 56,
         borderWidth: 1,
-        borderColor: COLORS.borderColor || '#E5E5EA'
+        borderColor: colors.borderColor
     },
     inputIcon: { marginRight: 12 },
-    input: { flex: 1, fontSize: 16, color: COLORS.text, fontWeight: '500' },
+    input: { flex: 1, fontSize: 16, color: colors.text, fontWeight: '500' },
     eyeBtn: { padding: 5 },
 
     loginBtn: {
-        backgroundColor: COLORS.primary,
+        backgroundColor: colors.primary,
         height: 56,
         borderRadius: 16,
         justifyContent: 'center', alignItems: 'center',
         marginTop: 10,
-        shadowColor: COLORS.primary, shadowOpacity: 0.3, shadowRadius: 8, elevation: 5
+        shadowColor: colors.primary, shadowOpacity: 0.3, shadowRadius: 8, elevation: 5
     },
-    loginBtnDisabled: { backgroundColor: '#C0C0C0', shadowOpacity: 0 },
+    loginBtnDisabled: { backgroundColor: colors.subText, shadowOpacity: 0 },
     loginBtnText: { color: 'white', fontSize: 16, fontWeight: 'bold', letterSpacing: 1 }
 });

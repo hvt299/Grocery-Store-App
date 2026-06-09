@@ -20,10 +20,11 @@ import {
 } from '../services/productService';
 import { socket } from '../lib/socket';
 import { formatCurrency } from '../utils/format';
-import { COLORS, SPACING } from '../constants/theme';
+import { SPACING } from '../constants/theme';
+import { ThemeContext } from '../context/ThemeContext';
 import GlobalSearchBar from '../components/GlobalSearchBar';
 
-const SkeletonProductCard = () => {
+const SkeletonProductCard = ({ colors, styles }: any) => {
   const fadeAnim = React.useRef(new Animated.Value(0.3)).current;
   React.useEffect(() => {
     Animated.loop(Animated.sequence([
@@ -35,22 +36,22 @@ const SkeletonProductCard = () => {
   return (
     <Animated.View style={[styles.itemCard, { opacity: fadeAnim }]}>
       <View style={styles.cardMainRow}>
-        <View style={{ width: 64, height: 64, borderRadius: 14, backgroundColor: '#E5E5EA' }} />
+        <View style={{ width: 64, height: 64, borderRadius: 14, backgroundColor: colors.borderColor }} />
         <View style={{ flex: 1, marginLeft: 12 }}>
-          <View style={{ width: '80%', height: 16, backgroundColor: '#E5E5EA', borderRadius: 4, marginBottom: 8 }} />
-          <View style={{ width: '50%', height: 12, backgroundColor: '#E5E5EA', borderRadius: 4, marginBottom: 12 }} />
-          <View style={{ width: 40, height: 14, backgroundColor: '#E5E5EA', borderRadius: 4 }} />
+          <View style={{ width: '80%', height: 16, backgroundColor: colors.borderColor, borderRadius: 4, marginBottom: 8 }} />
+          <View style={{ width: '50%', height: 12, backgroundColor: colors.borderColor, borderRadius: 4, marginBottom: 12 }} />
+          <View style={{ width: 40, height: 14, backgroundColor: colors.borderColor, borderRadius: 4 }} />
         </View>
         <View style={{ alignItems: 'flex-end', justifyContent: 'center' }}>
-          <View style={{ width: 60, height: 16, backgroundColor: '#E5E5EA', borderRadius: 4, marginBottom: 8 }} />
-          <View style={{ width: 40, height: 12, backgroundColor: '#E5E5EA', borderRadius: 4 }} />
+          <View style={{ width: 60, height: 16, backgroundColor: colors.borderColor, borderRadius: 4, marginBottom: 8 }} />
+          <View style={{ width: 40, height: 12, backgroundColor: colors.borderColor, borderRadius: 4 }} />
         </View>
       </View>
-      <View style={[styles.cardActionRow, { borderTopWidth: 1, borderTopColor: '#F0F4F8', paddingTop: 12 }]}>
-        <View style={{ width: 80, height: 24, backgroundColor: '#E5E5EA', borderRadius: 8 }} />
+      <View style={[styles.cardActionRow, { borderTopWidth: 1, borderTopColor: colors.borderColor, paddingTop: 12 }]}>
+        <View style={{ width: 80, height: 24, backgroundColor: colors.borderColor, borderRadius: 8 }} />
         <View style={{ flexDirection: 'row' }}>
-          <View style={{ width: 34, height: 34, backgroundColor: '#E5E5EA', borderRadius: 10, marginRight: 10 }} />
-          <View style={{ width: 34, height: 34, backgroundColor: '#E5E5EA', borderRadius: 10 }} />
+          <View style={{ width: 34, height: 34, backgroundColor: colors.borderColor, borderRadius: 10, marginRight: 10 }} />
+          <View style={{ width: 34, height: 34, backgroundColor: colors.borderColor, borderRadius: 10 }} />
         </View>
       </View>
     </Animated.View>
@@ -58,10 +59,13 @@ const SkeletonProductCard = () => {
 };
 
 const ProductCard = React.memo(({ item, onEdit, onDelete }: { item: any, onEdit: any, onDelete: any }) => {
+  const { colors, isDark } = React.useContext(ThemeContext);
+  const styles = createStyles(colors, isDark);
+
   const getStockColor = (stock: number) => {
-    if (stock <= 0) return COLORS.danger;
-    if (stock <= 10) return '#FF9500';
-    return COLORS.success;
+    if (stock <= 0) return colors.danger;
+    if (stock <= 10) return colors.warning;
+    return colors.success;
   };
 
   return (
@@ -86,8 +90,8 @@ const ProductCard = React.memo(({ item, onEdit, onDelete }: { item: any, onEdit:
           <Text style={styles.itemCategory} numberOfLines={1}>{item.categories?.name || 'Chưa phân loại'}</Text>
 
           <View style={styles.skuRow}>
-            <ScanBarcode size={14} color={COLORS.subText} />
-            <Text style={[styles.skuText, !item.sku && { fontStyle: 'italic', color: '#B0B0B0' }]} numberOfLines={1}>
+            <ScanBarcode size={14} color={colors.subText} />
+            <Text style={[styles.skuText, !item.sku && { fontStyle: 'italic', color: colors.subText }]} numberOfLines={1}>
               {item.sku ? item.sku : 'Chưa có mã'}
             </Text>
           </View>
@@ -108,10 +112,10 @@ const ProductCard = React.memo(({ item, onEdit, onDelete }: { item: any, onEdit:
 
         <View style={{ flexDirection: 'row' }}>
           <TouchableOpacity style={styles.actionBtn} onPress={() => onEdit(item)}>
-            <Pencil size={18} color={COLORS.primary} strokeWidth={2} />
+            <Pencil size={18} color={colors.primary} strokeWidth={2} />
           </TouchableOpacity>
           <TouchableOpacity style={[styles.actionBtn, { marginRight: 0 }]} onPress={() => onDelete(item._id)}>
-            <Trash2 size={18} color={COLORS.danger} strokeWidth={2} />
+            <Trash2 size={18} color={colors.danger} strokeWidth={2} />
           </TouchableOpacity>
         </View>
       </View>
@@ -120,6 +124,9 @@ const ProductCard = React.memo(({ item, onEdit, onDelete }: { item: any, onEdit:
 });
 
 export default function InventoryScreen({ navigation, route }: any) {
+  const { colors, isDark } = React.useContext(ThemeContext);
+  const styles = createStyles(colors, isDark);
+
   const insets = useSafeAreaInsets();
 
   const [products, setProducts] = useState<any[]>([]);
@@ -284,7 +291,7 @@ export default function InventoryScreen({ navigation, route }: any) {
 
   return (
     <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
-      <StatusBar style="dark" />
+      <StatusBar style={isDark ? "light" : "dark"} />
 
       {/* HEADER */}
       <View style={styles.header}>
@@ -293,7 +300,7 @@ export default function InventoryScreen({ navigation, route }: any) {
           <Text style={styles.headerSub}>Quản lý sản phẩm & tồn kho</Text>
         </View>
         <TouchableOpacity onPress={() => setCatModalVisible(true)} style={styles.iconBtn}>
-          <FolderOpen size={24} color={COLORS.primary} strokeWidth={2} />
+          <FolderOpen size={24} color={colors.primary} strokeWidth={2} />
         </TouchableOpacity>
       </View>
 
@@ -340,7 +347,10 @@ export default function InventoryScreen({ navigation, route }: any) {
       {/* DANH SÁCH */}
       {initialLoading ? (
         <View style={{ paddingHorizontal: SPACING, paddingTop: 10 }}>
-          <SkeletonProductCard /><SkeletonProductCard /><SkeletonProductCard /><SkeletonProductCard />
+          <SkeletonProductCard colors={colors} styles={styles} />
+          <SkeletonProductCard colors={colors} styles={styles} />
+          <SkeletonProductCard colors={colors} styles={styles} />
+          <SkeletonProductCard colors={colors} styles={styles} />
         </View>
       ) : (
         <FlatList
@@ -354,11 +364,11 @@ export default function InventoryScreen({ navigation, route }: any) {
           windowSize={5}
           removeClippedSubviews={Platform.OS === 'android'}
 
-          ListEmptyComponent={<Text style={{ textAlign: 'center', marginTop: 40, color: COLORS.subText, fontStyle: 'italic' }}>Không có sản phẩm nào</Text>}
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[COLORS.primary]} tintColor={COLORS.primary} />}
+          ListEmptyComponent={<Text style={{ textAlign: 'center', marginTop: 40, color: colors.subText, fontStyle: 'italic' }}>Không có sản phẩm nào</Text>}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[colors.primary]} tintColor={colors.primary} />}
           onEndReached={loadMore}
           onEndReachedThreshold={0.5}
-          ListFooterComponent={loadingMore ? <ActivityIndicator size="small" color={COLORS.primary} style={{ margin: 20 }} /> : null}
+          ListFooterComponent={loadingMore ? <ActivityIndicator size="small" color={colors.primary} style={{ margin: 20 }} /> : null}
 
           renderItem={renderItem}
         />
@@ -388,7 +398,7 @@ export default function InventoryScreen({ navigation, route }: any) {
             <View style={styles.modalHeaderRow}>
               <Text style={styles.modalTitle}>Bộ lọc nâng cao</Text>
               <TouchableOpacity onPress={() => setFilterModalVisible(false)}>
-                <X size={24} color={COLORS.text} />
+                <X size={24} color={colors.text} />
               </TouchableOpacity>
             </View>
 
@@ -442,15 +452,15 @@ export default function InventoryScreen({ navigation, route }: any) {
               <View style={[styles.bottomSheetContent, { maxHeight: '75%', paddingBottom: Math.max(insets.bottom, 20) }]}>
                 <View style={styles.modalHeaderRow}>
                   <Text style={styles.modalTitle}>Quản lý Danh mục</Text>
-                  <TouchableOpacity onPress={() => setCatModalVisible(false)}><X size={24} color={COLORS.text} /></TouchableOpacity>
+                  <TouchableOpacity onPress={() => setCatModalVisible(false)}><X size={24} color={colors.text} /></TouchableOpacity>
                 </View>
                 <View style={styles.addCatRow}>
-                  <TextInput style={[styles.input, { marginBottom: 0, flex: 1 }]} placeholder="Nhập tên danh mục mới..." value={catName} onChangeText={setCatName} />
+                  <TextInput style={[styles.input, { marginBottom: 0, flex: 1 }]} placeholder="Nhập tên danh mục mới..."  placeholderTextColor={colors.subText} value={catName} onChangeText={setCatName} />
                   <TouchableOpacity style={styles.addCatBtn} onPress={handleSaveCategory}>
                     {editingCatId ? <Check size={24} color="white" /> : <Plus size={24} color="white" />}
                   </TouchableOpacity>
                   {editingCatId && (
-                    <TouchableOpacity style={[styles.addCatBtn, { backgroundColor: COLORS.subText, marginLeft: 8 }]} onPress={() => { setEditingCatId(null); setCatName(''); }}>
+                    <TouchableOpacity style={[styles.addCatBtn, { backgroundColor: colors.subText, marginLeft: 8 }]} onPress={() => { setEditingCatId(null); setCatName(''); }}>
                       <X size={24} color="white" />
                     </TouchableOpacity>
                   )}
@@ -462,10 +472,10 @@ export default function InventoryScreen({ navigation, route }: any) {
                       <Text style={styles.catItemText}>{item.name}</Text>
                       <View style={{ flexDirection: 'row' }}>
                         <TouchableOpacity onPress={() => handleEditCategory(item)} style={{ padding: 8 }}>
-                          <Pencil size={20} color={COLORS.primary} />
+                          <Pencil size={20} color={colors.primary} />
                         </TouchableOpacity>
                         <TouchableOpacity onPress={() => handleDeleteCategory(item._id)} style={{ padding: 8 }}>
-                          <Trash2 size={20} color={COLORS.danger} />
+                          <Trash2 size={20} color={colors.danger} />
                         </TouchableOpacity>
                       </View>
                     </View>
@@ -479,99 +489,101 @@ export default function InventoryScreen({ navigation, route }: any) {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: COLORS.background },
-  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: SPACING, paddingTop: 10, paddingBottom: 15 },
-  headerTitle: { fontSize: 24, fontWeight: '800', color: COLORS.text },
-  headerSub: { fontSize: 14, color: COLORS.subText, marginTop: 2 },
-  iconBtn: { padding: 10, backgroundColor: COLORS.primaryLight, borderRadius: 12 },
+function createStyles(colors: any, isDark: boolean) {
+  return StyleSheet.create({
+    container: { flex: 1, backgroundColor: colors.background },
+    header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: SPACING, paddingTop: 10, paddingBottom: 15 },
+    headerTitle: { fontSize: 24, fontWeight: '800', color: colors.text },
+    headerSub: { fontSize: 14, color: colors.subText, marginTop: 2 },
+    iconBtn: { padding: 10, backgroundColor: colors.primaryLight, borderRadius: 12 },
 
-  searchSection: { flexDirection: 'row', paddingHorizontal: SPACING, marginBottom: 15 },
-  searchScanBtn: { width: 50, height: 50, backgroundColor: COLORS.primary, borderRadius: 16, justifyContent: 'center', alignItems: 'center', marginLeft: 10, shadowColor: COLORS.primary, shadowOpacity: 0.3, shadowRadius: 5, elevation: 3 },
+    searchSection: { flexDirection: 'row', paddingHorizontal: SPACING, marginBottom: 15 },
+    searchScanBtn: { width: 50, height: 50, backgroundColor: colors.primary, borderRadius: 16, justifyContent: 'center', alignItems: 'center', marginLeft: 10, shadowColor: colors.primary, shadowOpacity: 0.3, shadowRadius: 5, elevation: 3 },
 
-  filterChip: { paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20, backgroundColor: COLORS.card, marginRight: 10, borderWidth: 1, borderColor: COLORS.borderColor },
-  filterChipActive: { backgroundColor: COLORS.primary, borderColor: COLORS.primary },
-  filterText: { color: COLORS.subText, fontWeight: '600', fontSize: 14 },
-  filterTextActive: { color: 'white' },
+    filterChip: { paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20, backgroundColor: colors.card, marginRight: 10, borderWidth: 1, borderColor: colors.borderColor },
+    filterChipActive: { backgroundColor: colors.primary, borderColor: colors.primary },
+    filterText: { color: colors.subText, fontWeight: '600', fontSize: 14 },
+    filterTextActive: { color: 'white' },
 
-  itemCard: { backgroundColor: COLORS.card, padding: 14, borderRadius: 20, marginBottom: 12, shadowColor: "#000", shadowOpacity: 0.03, shadowRadius: 8, elevation: 2 },
-  cardMainRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 12 },
-  imgContainer: { width: 64, height: 64, borderRadius: 14, overflow: 'hidden', justifyContent: 'center', alignItems: 'center', backgroundColor: '#F0F4F8' },
-  itemImg: { width: '100%', height: '100%' },
-  itemImgPlaceholder: { width: '100%', height: '100%', justifyContent: 'center', alignItems: 'center', backgroundColor: COLORS.primaryLight },
-  itemImgText: { fontSize: 24, fontWeight: 'bold', color: COLORS.primary },
+    itemCard: { backgroundColor: colors.card, padding: 14, borderRadius: 20, marginBottom: 12, shadowColor: "#000", shadowOpacity: 0.03, shadowRadius: 8, elevation: 2 },
+    cardMainRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 12 },
+    imgContainer: { width: 64, height: 64, borderRadius: 14, overflow: 'hidden', justifyContent: 'center', alignItems: 'center', backgroundColor: isDark ? '#1a2235' : '#F0F4F8' },
+    itemImg: { width: '100%', height: '100%' },
+    itemImgPlaceholder: { width: '100%', height: '100%', justifyContent: 'center', alignItems: 'center', backgroundColor: colors.primaryLight },
+    itemImgText: { fontSize: 24, fontWeight: 'bold', color: colors.primary },
 
-  itemName: { fontSize: 16, fontWeight: '700', color: COLORS.text, marginBottom: 4 },
-  itemCategory: { fontSize: 13, color: COLORS.subText, marginBottom: 4 },
-  skuRow: { flexDirection: 'row', alignItems: 'center' },
-  skuText: { fontSize: 12, marginLeft: 6, flex: 1, color: COLORS.subText },
+    itemName: { fontSize: 16, fontWeight: '700', color: colors.text, marginBottom: 4 },
+    itemCategory: { fontSize: 13, color: colors.subText, marginBottom: 4 },
+    skuRow: { flexDirection: 'row', alignItems: 'center' },
+    skuText: { fontSize: 12, marginLeft: 6, flex: 1, color: colors.subText },
 
-  itemPrice: { fontSize: 16, fontWeight: '800', color: COLORS.text, marginBottom: 4 },
-  itemCost: { fontSize: 13, color: COLORS.subText },
+    itemPrice: { fontSize: 16, fontWeight: '800', color: colors.text, marginBottom: 4 },
+    itemCost: { fontSize: 13, color: colors.subText },
 
-  cardActionRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', borderTopWidth: 1, borderTopColor: '#F0F4F8', paddingTop: 12 },
-  stockBadge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8 },
-  stockBadgeText: { fontSize: 12, fontWeight: '700' },
-  actionBtn: { padding: 8, backgroundColor: '#F8F9FA', borderRadius: 10, marginRight: 10 },
+    cardActionRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', borderTopWidth: 1, borderTopColor: colors.borderColor, paddingTop: 12 },
+    stockBadge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8 },
+    stockBadgeText: { fontSize: 12, fontWeight: '700' },
+    actionBtn: { padding: 8, backgroundColor: colors.inputBg, borderRadius: 10, marginRight: 10 },
 
-  fab: { position: 'absolute', right: 20, bottom: 90, backgroundColor: COLORS.primary, width: 60, height: 60, borderRadius: 30, justifyContent: 'center', alignItems: 'center', shadowColor: COLORS.primary, shadowOpacity: 0.4, shadowRadius: 10, elevation: 8, zIndex: 10 },
+    fab: { position: 'absolute', right: 20, bottom: 90, backgroundColor: colors.primary, width: 60, height: 60, borderRadius: 30, justifyContent: 'center', alignItems: 'center', shadowColor: colors.primary, shadowOpacity: 0.4, shadowRadius: 10, elevation: 8, zIndex: 10 },
 
-  modalOverlayCart: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
-  modalContent: { backgroundColor: 'white', borderTopLeftRadius: 28, borderTopRightRadius: 28, padding: 24, paddingTop: 20 },
-  modalHeaderRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 },
-  modalTitle: { fontSize: 20, fontWeight: '800', color: COLORS.text },
+    modalOverlayCart: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
+    modalContent: { backgroundColor: colors.card, borderTopLeftRadius: 28, borderTopRightRadius: 28, padding: 24, paddingTop: 20 },
+    modalHeaderRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 },
+    modalTitle: { fontSize: 20, fontWeight: '800', color: colors.text },
 
-  imagePickerBtn: { width: 80, height: 80, backgroundColor: '#F8F9FA', borderRadius: 16, justifyContent: 'center', alignItems: 'center', borderWidth: 1.5, borderColor: '#D1D5DB', borderStyle: 'dashed' },
-  input: { backgroundColor: '#F8F9FA', borderWidth: 1, borderColor: '#E5E5EA', borderRadius: 14, padding: 14, marginBottom: 15, fontSize: 15, color: COLORS.text },
+    imagePickerBtn: { width: 80, height: 80, backgroundColor: colors.inputBg, borderRadius: 16, justifyContent: 'center', alignItems: 'center', borderWidth: 1.5, borderColor: colors.borderColor, borderStyle: 'dashed' },
+    input: { backgroundColor: colors.inputBg, borderWidth: 1, borderColor: colors.borderColor, borderRadius: 14, padding: 14, marginBottom: 15, fontSize: 15, color: colors.text },
 
-  skuInputContainer: { flexDirection: 'row', alignItems: 'center', marginBottom: 0 },
-  skuInputBox: { flex: 1, backgroundColor: '#F8F9FA', borderWidth: 1, borderRightWidth: 0, borderColor: '#E5E5EA', borderTopLeftRadius: 14, borderBottomLeftRadius: 14, padding: 14, fontSize: 15, color: COLORS.text },
-  skuScanBtn: { backgroundColor: COLORS.primary, paddingHorizontal: 14, height: 50, justifyContent: 'center', alignItems: 'center', borderTopRightRadius: 14, borderBottomRightRadius: 14 },
+    skuInputContainer: { flexDirection: 'row', alignItems: 'center', marginBottom: 0 },
+    skuInputBox: { flex: 1, backgroundColor: colors.inputBg, borderWidth: 1, borderRightWidth: 0, borderColor: colors.borderColor, borderTopLeftRadius: 14, borderBottomLeftRadius: 14, padding: 14, fontSize: 15, color: colors.text },
+    skuScanBtn: { backgroundColor: colors.primary, paddingHorizontal: 14, height: 50, justifyContent: 'center', alignItems: 'center', borderTopRightRadius: 14, borderBottomRightRadius: 14 },
 
-  row: { flexDirection: 'row' },
-  label: { marginBottom: 8, color: COLORS.subText, fontWeight: '600', fontSize: 13 },
-  pickerContainer: { backgroundColor: '#F8F9FA', borderWidth: 1, borderColor: '#E5E5EA', borderRadius: 14, marginBottom: 25 },
+    row: { flexDirection: 'row' },
+    label: { marginBottom: 8, color: colors.subText, fontWeight: '600', fontSize: 13 },
+    pickerContainer: { backgroundColor: colors.inputBg, borderWidth: 1, borderColor: colors.borderColor, borderRadius: 14, marginBottom: 25 },
 
-  modalButtons: { flexDirection: 'row', justifyContent: 'space-between' },
-  btn: { flex: 1, padding: 16, borderRadius: 14, alignItems: 'center' },
-  btnCancel: { backgroundColor: '#F5F5F5', marginRight: 8 },
-  btnSave: { backgroundColor: COLORS.primary, marginLeft: 8 },
-  btnTextGray: { color: COLORS.subText, fontWeight: 'bold', fontSize: 16 },
-  btnTextWhite: { color: 'white', fontWeight: 'bold', fontSize: 16 },
+    modalButtons: { flexDirection: 'row', justifyContent: 'space-between' },
+    btn: { flex: 1, padding: 16, borderRadius: 14, alignItems: 'center' },
+    btnCancel: { backgroundColor: colors.inputBg, marginRight: 8 },
+    btnSave: { backgroundColor: colors.primary, marginLeft: 8 },
+    btnTextGray: { color: colors.subText, fontWeight: 'bold', fontSize: 16 },
+    btnTextWhite: { color: 'white', fontWeight: 'bold', fontSize: 16 },
 
-  addCatRow: { flexDirection: 'row', marginBottom: 20 },
-  addCatBtn: { backgroundColor: COLORS.primary, width: 52, height: 52, justifyContent: 'center', alignItems: 'center', borderRadius: 14, marginLeft: 10 },
-  catItemRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: '#F5F5F5' },
-  catItemText: { fontSize: 16, color: COLORS.text, fontWeight: '600' },
+    addCatRow: { flexDirection: 'row', marginBottom: 20 },
+    addCatBtn: { backgroundColor: colors.primary, width: 52, height: 52, justifyContent: 'center', alignItems: 'center', borderRadius: 14, marginLeft: 10 },
+    catItemRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: colors.borderColor },
+    catItemText: { fontSize: 16, color: colors.text, fontWeight: '600' },
 
-  inlineNewDataContainer: {
-    width: '100%',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: 5,
-    marginBottom: 12,
-    paddingHorizontal: SPACING
-  },
+    inlineNewDataContainer: {
+      width: '100%',
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginTop: 5,
+      marginBottom: 12,
+      paddingHorizontal: SPACING
+    },
 
-  newDataPill: { flexDirection: 'row', backgroundColor: COLORS.primary, paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20, alignItems: 'center', shadowColor: '#000', shadowOpacity: 0.2, shadowRadius: 5, elevation: 5 },
-  newDataText: { color: 'white', fontSize: 13, fontWeight: 'bold' },
+    newDataPill: { flexDirection: 'row', backgroundColor: colors.primary, paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20, alignItems: 'center', shadowColor: '#000', shadowOpacity: 0.2, shadowRadius: 5, elevation: 5 },
+    newDataText: { color: 'white', fontSize: 13, fontWeight: 'bold' },
 
-  bottomSheetContent: { backgroundColor: '#FFF', borderTopLeftRadius: 28, borderTopRightRadius: 28, padding: 24, paddingTop: 15 },
-  modalHandle: { width: 40, height: 5, backgroundColor: '#E0E0E0', borderRadius: 3, alignSelf: 'center', marginBottom: 20 },
-  filterSectionTitle: { fontSize: 15, fontWeight: '700', color: COLORS.text, marginTop: 10, marginBottom: 12 },
-  chipRow: { flexDirection: 'row', flexWrap: 'wrap', marginBottom: 15 },
-  bsChip: { paddingHorizontal: 16, paddingVertical: 10, borderRadius: 12, backgroundColor: '#F8F9FA', borderWidth: 1, borderColor: '#E5E5EA', marginRight: 10, marginBottom: 10 },
-  bsChipActive: { backgroundColor: COLORS.primaryLight, borderColor: COLORS.primary },
-  bsChipText: { fontSize: 14, color: COLORS.text, fontWeight: '500' },
-  bsChipTextActive: { color: COLORS.primary, fontWeight: '700' },
-  bsFooter: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 15, paddingTop: 15, borderTopWidth: 1, borderTopColor: '#F0F4F8' },
-  bsBtnReset: { flex: 1, padding: 16, borderRadius: 14, alignItems: 'center', backgroundColor: '#F5F5F5', marginRight: 8 },
-  bsBtnResetText: { color: COLORS.subText, fontWeight: 'bold', fontSize: 16 },
-  bsBtnApply: { flex: 1, padding: 16, borderRadius: 14, alignItems: 'center', backgroundColor: COLORS.primary, marginLeft: 8 },
-  bsBtnApplyText: { color: 'white', fontWeight: 'bold', fontSize: 16 },
+    bottomSheetContent: { backgroundColor: colors.card, borderTopLeftRadius: 28, borderTopRightRadius: 28, padding: 24, paddingTop: 15 },
+    modalHandle: { width: 40, height: 5, backgroundColor: colors.borderColor, borderRadius: 3, alignSelf: 'center', marginBottom: 20 },
+    filterSectionTitle: { fontSize: 15, fontWeight: '700', color: colors.text, marginTop: 10, marginBottom: 12 },
+    chipRow: { flexDirection: 'row', flexWrap: 'wrap', marginBottom: 15 },
+    bsChip: { paddingHorizontal: 16, paddingVertical: 10, borderRadius: 12, backgroundColor: colors.inputBg, borderWidth: 1, borderColor: colors.borderColor, marginRight: 10, marginBottom: 10 },
+    bsChipActive: { backgroundColor: colors.primaryLight, borderColor: colors.primary },
+    bsChipText: { fontSize: 14, color: colors.text, fontWeight: '500' },
+    bsChipTextActive: { color: colors.primary, fontWeight: '700' },
+    bsFooter: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 15, paddingTop: 15, borderTopWidth: 1, borderTopColor: colors.borderColor },
+    bsBtnReset: { flex: 1, padding: 16, borderRadius: 14, alignItems: 'center', backgroundColor: colors.inputBg, marginRight: 8 },
+    bsBtnResetText: { color: colors.subText, fontWeight: 'bold', fontSize: 16 },
+    bsBtnApply: { flex: 1, padding: 16, borderRadius: 14, alignItems: 'center', backgroundColor: colors.primary, marginLeft: 8 },
+    bsBtnApplyText: { color: 'white', fontWeight: 'bold', fontSize: 16 },
 
-  actionSheetBtn: { paddingVertical: 16, backgroundColor: '#F8F9FA', borderRadius: 14, marginBottom: 12, alignItems: 'center' },
-  actionSheetBtnText: { fontSize: 16, fontWeight: '600', color: COLORS.text },
-  actionSheetCancelBtn: { backgroundColor: '#FFF0F0', marginTop: 8 },
-  actionSheetCancelText: { fontSize: 16, fontWeight: 'bold', color: COLORS.danger },
-});
+    actionSheetBtn: { paddingVertical: 16, backgroundColor: colors.inputBg, borderRadius: 14, marginBottom: 12, alignItems: 'center' },
+    actionSheetBtnText: { fontSize: 16, fontWeight: '600', color: colors.text },
+    actionSheetCancelBtn: { backgroundColor: isDark ? colors.danger + '20' : '#FFF0F0', marginTop: 8 },
+    actionSheetCancelText: { fontSize: 16, fontWeight: 'bold', color: colors.danger },
+  });
+}

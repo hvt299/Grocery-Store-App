@@ -1,11 +1,15 @@
-import React, { useState } from 'react';
+import React, { useState, useContext } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { ChevronLeft, Printer, Search, CheckCircle2 } from 'lucide-react-native';
-import { COLORS, SPACING } from '../constants/theme';
+import { SPACING } from '../constants/theme';
+import { ThemeContext } from '../context/ThemeContext';
 
 export default function PrinterSettingsScreen({ navigation }: any) {
+    const { colors, isDark } = useContext(ThemeContext);
+    const styles = createStyles(colors);
+
     const [isScanning, setIsScanning] = useState(false);
     const [devices, setDevices] = useState<any[]>([]);
     const [connectedDeviceId, setConnectedDeviceId] = useState<string | null>(null);
@@ -33,10 +37,10 @@ export default function PrinterSettingsScreen({ navigation }: any) {
 
     return (
         <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
-            <StatusBar style="dark" />
+            <StatusBar style={isDark ? "light" : "dark"} />
             <View style={styles.header}>
                 <TouchableOpacity onPress={() => navigation.goBack()} style={{ padding: 5 }}>
-                    <ChevronLeft size={28} color={COLORS.text} />
+                    <ChevronLeft size={28} color={colors.text} />
                 </TouchableOpacity>
                 <Text style={styles.headerTitle}>Máy in hóa đơn</Text>
                 <View style={{ width: 38 }} />
@@ -44,8 +48,8 @@ export default function PrinterSettingsScreen({ navigation }: any) {
 
             <View style={styles.body}>
                 <View style={styles.statusCard}>
-                    <View style={[styles.iconBox, connectedDeviceId && { backgroundColor: '#E8F5E9' }]}>
-                        <Printer size={32} color={connectedDeviceId ? COLORS.success : COLORS.subText} />
+                    <View style={[styles.iconBox, connectedDeviceId && { backgroundColor: isDark ? '#1a2e1d' : '#E8F5E9' }]}>
+                        <Printer size={32} color={connectedDeviceId ? colors.success : colors.subText} />
                     </View>
                     <Text style={styles.statusTitle}>
                         {connectedDeviceId ? 'Đã kết nối máy in' : 'Chưa kết nối máy in'}
@@ -77,7 +81,7 @@ export default function PrinterSettingsScreen({ navigation }: any) {
                         </View>
                         {connectedDeviceId === device.id ? (
                             <View style={styles.connectedBadge}>
-                                <CheckCircle2 size={16} color={COLORS.success} />
+                                <CheckCircle2 size={16} color={colors.success} />
                                 <Text style={styles.connectedText}>Đã kết nối</Text>
                             </View>
                         ) : (
@@ -92,26 +96,26 @@ export default function PrinterSettingsScreen({ navigation }: any) {
     );
 }
 
-const styles = StyleSheet.create({
-    container: { flex: 1, backgroundColor: COLORS.background },
-    header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: SPACING, paddingVertical: 15, borderBottomWidth: 1, borderBottomColor: '#F0F4F8' },
-    headerTitle: { fontSize: 20, fontWeight: '800', color: COLORS.text },
+const createStyles = (colors: any) => StyleSheet.create({
+    container: { flex: 1, backgroundColor: colors.background },
+    header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: SPACING, paddingVertical: 15, borderBottomWidth: 1, borderBottomColor: colors.borderColor },
+    headerTitle: { fontSize: 20, fontWeight: '800', color: colors.text },
     body: { padding: SPACING },
-    statusCard: { alignItems: 'center', backgroundColor: COLORS.card, padding: 30, borderRadius: 20, marginBottom: 30, shadowColor: "#000", shadowOpacity: 0.03, shadowRadius: 10, elevation: 2 },
-    iconBox: { width: 80, height: 80, borderRadius: 40, backgroundColor: '#F0F4F8', justifyContent: 'center', alignItems: 'center', marginBottom: 15 },
-    statusTitle: { fontSize: 18, fontWeight: '800', color: COLORS.text, marginBottom: 8 },
-    statusSub: { fontSize: 14, color: COLORS.subText, textAlign: 'center' },
-    testBtn: { marginTop: 20, paddingHorizontal: 20, paddingVertical: 10, backgroundColor: COLORS.primaryLight, borderRadius: 12 },
-    testBtnText: { color: COLORS.primary, fontWeight: 'bold' },
+    statusCard: { alignItems: 'center', backgroundColor: colors.card, padding: 30, borderRadius: 20, marginBottom: 30, shadowColor: "#000", shadowOpacity: 0.03, shadowRadius: 10, elevation: 2 },
+    iconBox: { width: 80, height: 80, borderRadius: 40, backgroundColor: colors.borderColor, justifyContent: 'center', alignItems: 'center', marginBottom: 15 },
+    statusTitle: { fontSize: 18, fontWeight: '800', color: colors.text, marginBottom: 8 },
+    statusSub: { fontSize: 14, color: colors.subText, textAlign: 'center' },
+    testBtn: { marginTop: 20, paddingHorizontal: 20, paddingVertical: 10, backgroundColor: colors.primaryLight, borderRadius: 12 },
+    testBtnText: { color: colors.primary, fontWeight: 'bold' },
     scanHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 15 },
-    scanTitle: { fontSize: 16, fontWeight: '700', color: COLORS.subText, textTransform: 'uppercase' },
-    scanBtn: { flexDirection: 'row', backgroundColor: COLORS.primary, paddingHorizontal: 16, paddingVertical: 10, borderRadius: 12, alignItems: 'center' },
+    scanTitle: { fontSize: 16, fontWeight: '700', color: colors.subText, textTransform: 'uppercase' },
+    scanBtn: { flexDirection: 'row', backgroundColor: colors.primary, paddingHorizontal: 16, paddingVertical: 10, borderRadius: 12, alignItems: 'center' },
     scanBtnText: { color: 'white', fontWeight: 'bold', marginLeft: 8 },
-    deviceItem: { flexDirection: 'row', alignItems: 'center', backgroundColor: COLORS.card, padding: 16, borderRadius: 16, marginBottom: 12, borderWidth: 1, borderColor: '#F0F4F8' },
-    deviceName: { fontSize: 16, fontWeight: '700', color: COLORS.text, marginBottom: 4 },
-    deviceMac: { fontSize: 13, color: COLORS.subText },
-    connectBtn: { backgroundColor: '#F0F4F8', paddingHorizontal: 16, paddingVertical: 8, borderRadius: 10 },
-    connectBtnText: { color: COLORS.primary, fontWeight: 'bold' },
-    connectedBadge: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#E8F5E9', paddingHorizontal: 12, paddingVertical: 8, borderRadius: 10 },
-    connectedText: { color: COLORS.success, fontWeight: 'bold', marginLeft: 6 }
+    deviceItem: { flexDirection: 'row', alignItems: 'center', backgroundColor: colors.card, padding: 16, borderRadius: 16, marginBottom: 12, borderWidth: 1, borderColor: colors.borderColor },
+    deviceName: { fontSize: 16, fontWeight: '700', color: colors.text, marginBottom: 4 },
+    deviceMac: { fontSize: 13, color: colors.subText },
+    connectBtn: { backgroundColor: colors.borderColor, paddingHorizontal: 16, paddingVertical: 8, borderRadius: 10 },
+    connectBtnText: { color: colors.primary, fontWeight: 'bold' },
+    connectedBadge: { flexDirection: 'row', alignItems: 'center', backgroundColor: colors.success + '20', paddingHorizontal: 12, paddingVertical: 8, borderRadius: 10 },
+    connectedText: { color: colors.success, fontWeight: 'bold', marginLeft: 6 }
 });

@@ -9,8 +9,8 @@ import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-cont
 import { StatusBar } from 'expo-status-bar';
 
 import { AuthContext } from '../context/AuthContext';
+import { ThemeContext } from '../context/ThemeContext';
 import NetworkStatus from '../components/NetworkStatus';
-import { COLORS } from '../constants/theme';
 
 import LoginScreen from '../screens/LoginScreen';
 import PosScreen from '../screens/PosScreen';
@@ -35,6 +35,9 @@ const EmptyScreen = () => null;
 
 const CustomScanButton = () => {
     const navigation = useNavigation<any>();
+    const { colors, isDark } = useContext(ThemeContext);
+    const styles = createStyles(colors, isDark);
+    
     return (
         <TouchableOpacity
             style={styles.customScanButton}
@@ -49,6 +52,8 @@ const CustomScanButton = () => {
 };
 
 function MyCustomTabBar({ state, descriptors, navigation }: any) {
+    const { colors, isDark } = useContext(ThemeContext);
+    const styles = createStyles(colors, isDark);
     const insets = useSafeAreaInsets();
     const androidBottomGap = insets.bottom > 0 ? insets.bottom : 10;
 
@@ -76,7 +81,7 @@ function MyCustomTabBar({ state, descriptors, navigation }: any) {
                     }
                 };
 
-                const color = isFocused ? COLORS.primary : COLORS.subText;
+                const color = isFocused ? colors.primary : colors.subText;
 
                 let IconComponent = ShoppingCart;
                 if (route.name === 'Sell') IconComponent = ShoppingCart;
@@ -132,54 +137,38 @@ const AppRoot = () => (
 
 export default function AppNavigator() {
     const { isLoading, userToken } = useContext(AuthContext);
+    const { colors, isDark } = useContext(ThemeContext);
 
     if (isLoading) {
         return (
-            <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-                <ActivityIndicator size="large" color={COLORS.primary} />
+            <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: colors.background }}>
+                <ActivityIndicator size="large" color={colors.primary} />
             </View>
         );
     }
 
     return (
-        <SafeAreaProvider style={{ flex: 1, backgroundColor: COLORS.background }}>
-            <StatusBar style="dark" backgroundColor="transparent" translucent={true} />
+        <SafeAreaProvider style={{ flex: 1, backgroundColor: colors.background }}>
+            <StatusBar style={isDark ? "light" : "dark"} backgroundColor="transparent" translucent={true} />
             <NetworkStatus />
             {userToken ? <AppRoot /> : <AuthStack />}
         </SafeAreaProvider>
     );
 }
 
-const styles = StyleSheet.create({
-    tabBarContainer: {
-        position: 'absolute',
-        bottom: 0,
-        left: 0,
-        right: 0,
-        flexDirection: 'row',
-        backgroundColor: '#FFFFFF',
-        borderTopLeftRadius: 20,
-        borderTopRightRadius: 20,
-        alignItems: 'center',
-        justifyContent: 'space-around',
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: -4 },
-        shadowOpacity: 0.05,
-        shadowRadius: 10,
-        elevation: 15,
-        borderTopWidth: 0,
-    },
-    tabItem: {
-        flex: 1,
-        alignItems: 'center',
-        justifyContent: 'center',
-        height: '100%',
-    },
-    tabLabel: {
-        fontSize: 11,
-        fontWeight: '600',
-        marginTop: 4,
-    },
-    customScanButton: { top: -18, justifyContent: 'center', alignItems: 'center', flex: 1 },
-    scanButtonInner: { width: 60, height: 60, borderRadius: 30, backgroundColor: COLORS.primary, justifyContent: 'center', alignItems: 'center', shadowColor: COLORS.primary, shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.6, shadowRadius: 12, elevation: 12 }
-});
+function createStyles(colors: any, isDark: boolean) {
+    return StyleSheet.create({
+        tabBarContainer: {
+            position: 'absolute', bottom: 0, left: 0, right: 0, flexDirection: 'row',
+            backgroundColor: colors.card,
+            borderTopLeftRadius: 20, borderTopRightRadius: 20,
+            alignItems: 'center', justifyContent: 'space-around',
+            shadowColor: '#000', shadowOffset: { width: 0, height: -4 },
+            shadowOpacity: isDark ? 0.2 : 0.05, shadowRadius: 10, elevation: 15, borderTopWidth: 0,
+        },
+        tabItem: { flex: 1, alignItems: 'center', justifyContent: 'center', height: '100%' },
+        tabLabel: { fontSize: 11, fontWeight: '600', marginTop: 4 },
+        customScanButton: { top: -18, justifyContent: 'center', alignItems: 'center', flex: 1 },
+        scanButtonInner: { width: 60, height: 60, borderRadius: 30, backgroundColor: colors.primary, justifyContent: 'center', alignItems: 'center', shadowColor: colors.primary, shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.6, shadowRadius: 12, elevation: 12 }
+    });
+}

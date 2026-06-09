@@ -10,9 +10,12 @@ import * as ImagePicker from 'expo-image-picker';
 import { Camera as CameraIcon, ScanBarcode, ChevronLeft } from 'lucide-react-native';
 
 import { addProduct, updateProduct, getCategories, uploadImageToCloudinary } from '../services/productService';
-import { COLORS, SPACING } from '../constants/theme';
+import { SPACING } from '../constants/theme';
+import { ThemeContext } from '../context/ThemeContext';
 
 export default function AddEditProductScreen({ navigation, route }: any) {
+    const { colors, isDark } = React.useContext(ThemeContext);
+    const styles = createStyles(colors, isDark);
     const insets = useSafeAreaInsets();
 
     const productToEdit = route.params?.product;
@@ -95,10 +98,10 @@ export default function AddEditProductScreen({ navigation, route }: any) {
 
     return (
         <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
-            <StatusBar style="dark" />
+            <StatusBar style={isDark ? "light" : "dark"} />
             <View style={styles.header}>
                 <TouchableOpacity onPress={() => navigation.goBack()} style={{ padding: 5 }}>
-                    <ChevronLeft size={28} color={COLORS.text} />
+                    <ChevronLeft size={28} color={colors.text} />
                 </TouchableOpacity>
                 <Text style={styles.headerTitle}>{productToEdit ? 'Sửa món hàng' : 'Thêm món hàng'}</Text>
                 <View style={{ width: 28 }} />
@@ -109,14 +112,14 @@ export default function AddEditProductScreen({ navigation, route }: any) {
 
                     <View style={{ flexDirection: 'row', marginBottom: 20 }}>
                         <TouchableOpacity style={styles.imagePickerBtn} onPress={() => setImagePickerVisible(true)} disabled={isUploading}>
-                            {isUploading ? <ActivityIndicator size="large" color={COLORS.primary} />
+                            {isUploading ? <ActivityIndicator size="large" color={colors.primary} />
                                 : prodImageUrl ? <Image source={{ uri: prodImageUrl }} style={{ width: '100%', height: '100%', borderRadius: 12 }} />
-                                    : <CameraIcon size={32} color={COLORS.subText} strokeWidth={1.5} />}
+                                    : <CameraIcon size={32} color={colors.subText} strokeWidth={1.5} />}
                         </TouchableOpacity>
                         <View style={{ flex: 1, marginLeft: 15 }}>
-                            <TextInput style={styles.input} placeholder="Tên món hàng (*)" value={prodName} onChangeText={setProdName} />
+                            <TextInput style={styles.input} placeholder="Tên món hàng (*)" placeholderTextColor={colors.subText} value={prodName} onChangeText={setProdName} />
                             <View style={styles.skuInputContainer}>
-                                <TextInput style={styles.skuInputBox} placeholder="Mã vạch (SKU)" value={prodSku} onChangeText={setProdSku} />
+                                <TextInput style={styles.skuInputBox} placeholder="Mã vạch (SKU)" placeholderTextColor={colors.subText} value={prodSku} onChangeText={setProdSku} />
                                 <TouchableOpacity style={styles.skuScanBtn} onPress={() => navigation.navigate('GlobalScanner', { returnScreen: 'AddEditProduct', action: 'sku' })}>
                                     <ScanBarcode size={22} color="white" />
                                 </TouchableOpacity>
@@ -125,18 +128,18 @@ export default function AddEditProductScreen({ navigation, route }: any) {
                     </View>
 
                     <View style={styles.row}>
-                        <TextInput style={[styles.input, { flex: 1, marginRight: 8 }]} placeholder="Giá bán (*)" keyboardType="numeric" value={prodPrice} onChangeText={setProdPrice} />
-                        <TextInput style={[styles.input, { flex: 1, marginLeft: 8 }]} placeholder="Giá vốn" keyboardType="numeric" value={prodCostPrice} onChangeText={setProdCostPrice} />
+                        <TextInput style={[styles.input, { flex: 1, marginRight: 8 }]} placeholder="Giá bán (*)" placeholderTextColor={colors.subText} keyboardType="numeric" value={prodPrice} onChangeText={setProdPrice} />
+                        <TextInput style={[styles.input, { flex: 1, marginLeft: 8 }]} placeholder="Giá vốn" placeholderTextColor={colors.subText} keyboardType="numeric" value={prodCostPrice} onChangeText={setProdCostPrice} />
                     </View>
 
                     <View style={styles.row}>
-                        <TextInput style={[styles.input, { flex: 1, marginRight: 8 }]} placeholder="Tồn kho" keyboardType="numeric" value={prodStock} onChangeText={setProdStock} />
-                        <TextInput style={[styles.input, { flex: 1, marginLeft: 8 }]} placeholder="Đơn vị (Cái, Chai...)" value={prodUnit} onChangeText={setProdUnit} />
+                        <TextInput style={[styles.input, { flex: 1, marginRight: 8 }]} placeholder="Tồn kho" placeholderTextColor={colors.subText} keyboardType="numeric" value={prodStock} onChangeText={setProdStock} />
+                        <TextInput style={[styles.input, { flex: 1, marginLeft: 8 }]} placeholder="Đơn vị (Cái, Chai...)" placeholderTextColor={colors.subText} value={prodUnit} onChangeText={setProdUnit} />
                     </View>
 
                     <Text style={styles.label}>Phân loại danh mục:</Text>
                     <View style={styles.pickerContainer}>
-                        <Picker selectedValue={selectedCat} onValueChange={(v) => setSelectedCat(v)}>
+                        <Picker selectedValue={selectedCat} onValueChange={(v) => setSelectedCat(v)} style={{ color: colors.text }} dropdownIconColor={colors.text}>
                             <Picker.Item label="Chưa phân loại" value="" />
                             {categories.map((c) => <Picker.Item key={c._id} label={c.name} value={c._id} />)}
                         </Picker>
@@ -157,11 +160,11 @@ export default function AddEditProductScreen({ navigation, route }: any) {
                     <TouchableOpacity style={{ flex: 1 }} onPress={() => setImagePickerVisible(false)} />
                     <View style={[styles.bottomSheet, { paddingBottom: Math.max(insets.bottom, 20) }]}>
                         <View style={styles.modalHandle} />
-                        <Text style={{ fontSize: 18, fontWeight: '800', textAlign: 'center', marginBottom: 20 }}>Chọn ảnh sản phẩm</Text>
+                        <Text style={{ fontSize: 18, fontWeight: '800', textAlign: 'center', marginBottom: 20, color: colors.text }}>Chọn ảnh sản phẩm</Text>
                         <TouchableOpacity style={styles.actionBtn} onPress={() => handleLaunchPicker('camera')}><Text style={styles.actionBtnText}>Chụp ảnh mới</Text></TouchableOpacity>
                         <TouchableOpacity style={styles.actionBtn} onPress={() => handleLaunchPicker('library')}><Text style={styles.actionBtnText}>Chọn từ thư viện</Text></TouchableOpacity>
-                        <TouchableOpacity style={[styles.actionBtn, { backgroundColor: '#FFF0F0', marginTop: 8 }]} onPress={() => setImagePickerVisible(false)}>
-                            <Text style={[styles.actionBtnText, { color: COLORS.danger }]}>Hủy bỏ</Text>
+                        <TouchableOpacity style={[styles.actionBtn, { backgroundColor: isDark ? colors.danger + '20' : '#FFF0F0', marginTop: 8 }]} onPress={() => setImagePickerVisible(false)}>
+                            <Text style={[styles.actionBtnText, { color: colors.danger }]}>Hủy bỏ</Text>
                         </TouchableOpacity>
                     </View>
                 </View>
@@ -170,30 +173,30 @@ export default function AddEditProductScreen({ navigation, route }: any) {
     );
 }
 
-const styles = StyleSheet.create({
-    container: { flex: 1, backgroundColor: COLORS.background },
-    header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: SPACING, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: '#F0F4F8' },
-    headerTitle: { fontSize: 20, fontWeight: '800', color: COLORS.text },
+const createStyles = (colors: any, isDark: boolean) => StyleSheet.create({
+    container: { flex: 1, backgroundColor: colors.background },
+    header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: SPACING, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: colors.borderColor },
+    headerTitle: { fontSize: 20, fontWeight: '800', color: colors.text },
 
-    imagePickerBtn: { width: 90, height: 90, backgroundColor: '#F8F9FA', borderRadius: 16, justifyContent: 'center', alignItems: 'center', borderWidth: 1.5, borderColor: '#D1D5DB', borderStyle: 'dashed' },
-    input: { backgroundColor: '#F8F9FA', borderWidth: 1, borderColor: '#E5E5EA', borderRadius: 14, padding: 14, marginBottom: 15, fontSize: 15, color: COLORS.text },
+    imagePickerBtn: { width: 90, height: 90, backgroundColor: colors.inputBg, borderRadius: 16, justifyContent: 'center', alignItems: 'center', borderWidth: 1.5, borderColor: colors.borderColor, borderStyle: 'dashed' },
+    input: { backgroundColor: colors.inputBg, borderWidth: 1, borderColor: colors.borderColor, borderRadius: 14, padding: 14, marginBottom: 15, fontSize: 15, color: colors.text },
 
     skuInputContainer: { flexDirection: 'row', alignItems: 'center', marginBottom: 0 },
-    skuInputBox: { flex: 1, backgroundColor: '#F8F9FA', borderWidth: 1, borderRightWidth: 0, borderColor: '#E5E5EA', borderTopLeftRadius: 14, borderBottomLeftRadius: 14, padding: 14, fontSize: 15, color: COLORS.text },
-    skuScanBtn: { backgroundColor: COLORS.primary, paddingHorizontal: 14, height: 50, justifyContent: 'center', alignItems: 'center', borderTopRightRadius: 14, borderBottomRightRadius: 14 },
+    skuInputBox: { flex: 1, backgroundColor: colors.inputBg, borderWidth: 1, borderRightWidth: 0, borderColor: colors.borderColor, borderTopLeftRadius: 14, borderBottomLeftRadius: 14, padding: 14, fontSize: 15, color: colors.text },
+    skuScanBtn: { backgroundColor: colors.primary, paddingHorizontal: 14, height: 50, justifyContent: 'center', alignItems: 'center', borderTopRightRadius: 14, borderBottomRightRadius: 14 },
 
     row: { flexDirection: 'row' },
-    label: { marginBottom: 8, color: COLORS.subText, fontWeight: '600', fontSize: 13 },
-    pickerContainer: { backgroundColor: '#F8F9FA', borderWidth: 1, borderColor: '#E5E5EA', borderRadius: 14, marginBottom: 25 },
+    label: { marginBottom: 8, color: colors.subText, fontWeight: '600', fontSize: 13 },
+    pickerContainer: { backgroundColor: colors.inputBg, borderWidth: 1, borderColor: colors.borderColor, borderRadius: 14, marginBottom: 25 },
 
-    footer: { paddingHorizontal: SPACING, paddingTop: 15, borderTopWidth: 1, borderTopColor: '#F0F4F8', backgroundColor: '#FFF' },
+    footer: { paddingHorizontal: SPACING, paddingTop: 15, borderTopWidth: 1, borderTopColor: colors.borderColor, backgroundColor: colors.card },
     btn: { width: '100%', padding: 16, borderRadius: 14, alignItems: 'center' },
-    btnSave: { backgroundColor: COLORS.primary },
+    btnSave: { backgroundColor: colors.primary },
     btnTextWhite: { color: 'white', fontWeight: 'bold', fontSize: 16 },
 
     modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
-    bottomSheet: { backgroundColor: 'white', borderTopLeftRadius: 28, borderTopRightRadius: 28, padding: 24 },
-    modalHandle: { width: 40, height: 5, backgroundColor: '#E0E0E0', borderRadius: 3, alignSelf: 'center', marginBottom: 20 },
-    actionBtn: { paddingVertical: 16, backgroundColor: '#F8F9FA', borderRadius: 14, marginBottom: 12, alignItems: 'center' },
-    actionBtnText: { fontSize: 16, fontWeight: '600', color: COLORS.text }
+    bottomSheet: { backgroundColor: colors.card, borderTopLeftRadius: 28, borderTopRightRadius: 28, padding: 24 },
+    modalHandle: { width: 40, height: 5, backgroundColor: colors.borderColor, borderRadius: 3, alignSelf: 'center', marginBottom: 20 },
+    actionBtn: { paddingVertical: 16, backgroundColor: colors.inputBg, borderRadius: 14, marginBottom: 12, alignItems: 'center' },
+    actionBtnText: { fontSize: 16, fontWeight: '600', color: colors.text }
 });

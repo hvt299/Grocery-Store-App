@@ -2,36 +2,50 @@ import React, { useState, useEffect, useMemo } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity,
   Modal, ActivityIndicator, SectionList, Alert,
-  RefreshControl
+  RefreshControl, Animated
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import NetInfo from '@react-native-community/netinfo';
 import { StatusBar } from 'expo-status-bar';
 
-import { Receipt, Trash2, X, Clock, FileText } from 'lucide-react-native';
+import { Receipt, Trash2, X, Clock, FileText, Printer } from 'lucide-react-native';
 
 import { getInvoices, deleteInvoice } from '../services/productService';
+import { printReceipt } from '../services/printerService';
 import { formatCurrency, formatDate } from '../utils/format';
 import { socket } from '../lib/socket';
-import { COLORS, SPACING } from '../constants/theme';
+import { SPACING } from '../constants/theme';
+import { ThemeContext } from '../context/ThemeContext';
 
-const SkeletonRow = () => (
-  <View style={[styles.card, { opacity: 0.6 }]}>
-    <View style={styles.cardRow}>
-      <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-        <View style={[styles.iconBox, { backgroundColor: '#F0F4F8' }]} />
-        <View style={{ marginLeft: 12 }}>
-          <View style={{ width: 120, height: 14, backgroundColor: '#E5E5EA', borderRadius: 4, marginBottom: 8 }} />
-          <View style={{ width: 60, height: 10, backgroundColor: '#E5E5EA', borderRadius: 4 }} />
+const SkeletonRow = ({ colors, styles }: any) => {
+  const fadeAnim = React.useRef(new Animated.Value(0.3)).current;
+  React.useEffect(() => {
+    Animated.loop(Animated.sequence([
+      Animated.timing(fadeAnim, { toValue: 1, duration: 800, useNativeDriver: true }),
+      Animated.timing(fadeAnim, { toValue: 0.3, duration: 800, useNativeDriver: true })
+    ])).start();
+  }, [fadeAnim]);
+
+  return (
+    <Animated.View style={[styles.card, { opacity: fadeAnim }]}>
+      <View style={styles.cardRow}>
+        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+          <View style={[styles.iconBox, { backgroundColor: colors.borderColor }]} />
+          <View style={{ marginLeft: 12 }}>
+            <View style={{ width: 120, height: 14, backgroundColor: colors.inputBg, borderRadius: 4, marginBottom: 8 }} />
+            <View style={{ width: 60, height: 10, backgroundColor: colors.inputBg, borderRadius: 4 }} />
+          </View>
         </View>
+        <View style={{ width: 80, height: 16, backgroundColor: colors.inputBg, borderRadius: 4 }} />
       </View>
-      <View style={{ width: 80, height: 16, backgroundColor: '#E5E5EA', borderRadius: 4 }} />
-    </View>
-  </View>
-);
+    </Animated.View>
+  );
+};
 
 export default function HistoryScreen() {
+  const { colors, isDark } = React.useContext(ThemeContext);
+  const styles = createStyles(colors, isDark);
   const insets = useSafeAreaInsets();
   const [invoices, setInvoices] = useState<any[]>([]);
 
@@ -140,14 +154,14 @@ export default function HistoryScreen() {
       <View style={styles.cardRow}>
         <View style={{ flexDirection: 'row', alignItems: 'center' }}>
           <View style={styles.iconBox}>
-            <Receipt size={24} color={COLORS.primary} strokeWidth={2} />
+            <Receipt size={24} color={colors.primary} strokeWidth={2} />
           </View>
           <View style={{ marginLeft: 12 }}>
             <Text style={styles.summaryText} numberOfLines={1}>
               {item.items?.map((i: any) => i.productName).join(', ')}
             </Text>
             <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 4 }}>
-              <Clock size={12} color={COLORS.subText} style={{ marginRight: 4 }} />
+              <Clock size={12} color={colors.subText} style={{ marginRight: 4 }} />
               <Text style={styles.timeText}>
                 {new Date(item.createdAt).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}
               </Text>
@@ -162,9 +176,8 @@ export default function HistoryScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
-      <StatusBar style="dark" />
+      <StatusBar style={isDark ? "light" : "dark"} />
 
-      {/* HEADER MỚI BỎ NÚT ĐĂNG XUẤT */}
       <View style={styles.header}>
         <Text style={styles.headerLabel}>Doanh thu hôm nay</Text>
         <Text style={styles.headerValue}>{formatCurrency(todayRevenue)}</Text>
@@ -173,7 +186,7 @@ export default function HistoryScreen() {
       <View style={styles.body}>
         {initialLoading ? (
           <View style={{ paddingHorizontal: SPACING, paddingTop: SPACING }}>
-            <SkeletonRow /><SkeletonRow /><SkeletonRow /><SkeletonRow /><SkeletonRow />
+            <SkeletonRow colors={colors} styles={styles} /><SkeletonRow colors={colors} styles={styles} /><SkeletonRow colors={colors} styles={styles} />
           </View>
         ) : (
           <SectionList
@@ -191,19 +204,18 @@ export default function HistoryScreen() {
             stickySectionHeadersEnabled={false}
             onEndReached={loadMore}
             onEndReachedThreshold={0.5}
-            ListFooterComponent={loadingMore ? <ActivityIndicator size="small" color={COLORS.primary} style={{ margin: 20 }} /> : null}
+            ListFooterComponent={loadingMore ? <ActivityIndicator size="small" color={colors.primary} style={{ margin: 20 }} /> : null}
             ListEmptyComponent={
               <View style={{ alignItems: 'center', marginTop: 60 }}>
-                <FileText size={60} color={COLORS.subText} style={{ opacity: 0.5, marginBottom: 15 }} />
-                <Text style={{ textAlign: 'center', color: COLORS.subText, fontStyle: 'italic' }}>Chưa có đơn hàng nào được bán</Text>
+                <FileText size={60} color={colors.subText} style={{ opacity: 0.5, marginBottom: 15 }} />
+                <Text style={{ textAlign: 'center', color: colors.subText, fontStyle: 'italic' }}>Chưa có đơn hàng nào được bán</Text>
               </View>
             }
-            refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[COLORS.primary]} />}
+            refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[colors.primary]} />}
           />
         )}
       </View>
 
-      {/* MODAL CHI TIẾT HÓA ĐƠN (GIAO DIỆN BILL) */}
       <Modal visible={detailVisible} animationType="slide" transparent={true}>
         <View style={styles.modalOverlay}>
           <TouchableOpacity style={{ flex: 1 }} onPress={() => setDetailVisible(false)} />
@@ -213,7 +225,7 @@ export default function HistoryScreen() {
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Chi tiết hóa đơn</Text>
               <TouchableOpacity onPress={() => setDetailVisible(false)} style={styles.closeBtn}>
-                <X size={24} color={COLORS.text} />
+                <X size={24} color={colors.text} />
               </TouchableOpacity>
             </View>
 
@@ -224,7 +236,6 @@ export default function HistoryScreen() {
                   <Text style={styles.modalDate}>{formatDate(selectedInvoice.createdAt)}</Text>
                 </View>
 
-                {/* ĐƯỜNG KẺ ĐỨT NÉT KIỂU BILL */}
                 <View style={styles.dashedDivider} />
 
                 {selectedInvoice.items?.map((item: any, index: number) => (
@@ -244,13 +255,19 @@ export default function HistoryScreen() {
                   <Text style={styles.totalValue}>{formatCurrency(selectedInvoice.totalAmount)}</Text>
                 </View>
 
-                {/* NÚT HỦY ĐƠN HÀNG */}
+                <TouchableOpacity
+                  style={[styles.deleteBtn, { backgroundColor: colors.primary, borderColor: colors.primary, marginBottom: 12 }]}
+                  onPress={() => { printReceipt(selectedInvoice); }} activeOpacity={0.8}
+                >
+                  <Printer size={20} color="white" style={{ marginRight: 8 }} />
+                  <Text style={[styles.deleteBtnText, { color: 'white' }]}>In lại hóa đơn</Text>
+                </TouchableOpacity>
+
                 <TouchableOpacity
                   style={styles.deleteBtn}
-                  onPress={() => handleDeleteInvoice(selectedInvoice._id)}
-                  activeOpacity={0.8}
+                  onPress={() => handleDeleteInvoice(selectedInvoice._id)} activeOpacity={0.8}
                 >
-                  <Trash2 size={20} color={COLORS.danger} style={{ marginRight: 8 }} />
+                  <Trash2 size={20} color={colors.danger} style={{ marginRight: 8 }} />
                   <Text style={styles.deleteBtnText}>Hủy đơn & Hoàn kho</Text>
                 </TouchableOpacity>
               </View>
@@ -262,50 +279,52 @@ export default function HistoryScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: COLORS.background },
+function createStyles(colors: any, isDark: boolean) {
+  return StyleSheet.create({
+    container: { flex: 1, backgroundColor: colors.background },
 
-  header: { backgroundColor: COLORS.primary, paddingHorizontal: SPACING, paddingTop: 20, paddingBottom: 30, borderBottomLeftRadius: 24, borderBottomRightRadius: 24, alignItems: 'center', shadowColor: COLORS.primary, shadowOpacity: 0.3, shadowRadius: 10, elevation: 8, zIndex: 10 },
-  headerLabel: { color: 'rgba(255,255,255,0.8)', fontSize: 13, marginBottom: 5, fontWeight: '600', textTransform: 'uppercase', letterSpacing: 1 },
-  headerValue: { color: 'white', fontSize: 36, fontWeight: '900' },
+    header: { backgroundColor: colors.primary, paddingHorizontal: SPACING, paddingTop: 20, paddingBottom: 30, borderBottomLeftRadius: 24, borderBottomRightRadius: 24, alignItems: 'center', shadowColor: colors.primary, shadowOpacity: 0.3, shadowRadius: 10, elevation: 8, zIndex: 10 },
+    headerLabel: { color: 'rgba(255,255,255,0.8)', fontSize: 13, marginBottom: 5, fontWeight: '600', textTransform: 'uppercase', letterSpacing: 1 },
+    headerValue: { color: 'white', fontSize: 36, fontWeight: '900' },
 
-  body: { flex: 1, marginTop: -10 },
+    body: { flex: 1, marginTop: -10 },
 
-  sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 12, marginTop: 15, marginBottom: 5 },
-  sectionTitle: { fontSize: 13, fontWeight: 'bold', color: COLORS.subText, textTransform: 'uppercase', letterSpacing: 0.5 },
-  sectionTotal: { fontSize: 14, fontWeight: 'bold', color: COLORS.text },
+    sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 12, marginTop: 15, marginBottom: 5 },
+    sectionTitle: { fontSize: 13, fontWeight: 'bold', color: colors.subText, textTransform: 'uppercase', letterSpacing: 0.5 },
+    sectionTotal: { fontSize: 14, fontWeight: 'bold', color: colors.text },
 
-  card: { backgroundColor: COLORS.card, borderRadius: 16, padding: 16, marginBottom: 12, shadowColor: "#000", shadowOpacity: 0.03, shadowRadius: 8, elevation: 2 },
-  cardRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  iconBox: { width: 48, height: 48, borderRadius: 12, backgroundColor: COLORS.primaryLight, justifyContent: 'center', alignItems: 'center' },
+    card: { backgroundColor: colors.card, borderRadius: 16, padding: 16, marginBottom: 12, shadowColor: "#000", shadowOpacity: 0.03, shadowRadius: 8, elevation: 2 },
+    cardRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+    iconBox: { width: 48, height: 48, borderRadius: 12, backgroundColor: isDark ? '#1a2235' : colors.primaryLight, justifyContent: 'center', alignItems: 'center' },
 
-  summaryText: { fontSize: 16, fontWeight: '700', color: COLORS.text, maxWidth: 200 },
-  timeText: { fontSize: 13, fontWeight: '600', color: COLORS.subText },
-  itemCount: { fontSize: 13, color: COLORS.subText },
-  amountText: { fontSize: 16, fontWeight: '800', color: COLORS.primary },
+    summaryText: { fontSize: 16, fontWeight: '700', color: colors.text, maxWidth: 200 },
+    timeText: { fontSize: 13, fontWeight: '600', color: colors.subText },
+    itemCount: { fontSize: 13, color: colors.subText },
+    amountText: { fontSize: 16, fontWeight: '800', color: colors.primary },
 
-  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
-  modalContent: { backgroundColor: 'white', borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 24, maxHeight: '85%', shadowColor: "#000", shadowOpacity: 0.2, shadowRadius: 10, elevation: 10 },
-  modalHandle: { width: 40, height: 5, backgroundColor: '#E0E0E0', borderRadius: 3, alignSelf: 'center', marginBottom: 20 },
+    modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
+    modalContent: { backgroundColor: colors.card, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 24, maxHeight: '85%', shadowColor: "#000", shadowOpacity: 0.2, shadowRadius: 10, elevation: 10 },
+    modalHandle: { width: 40, height: 5, backgroundColor: colors.borderColor, borderRadius: 3, alignSelf: 'center', marginBottom: 20 },
 
-  modalHeader: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', marginBottom: 20, position: 'relative' },
-  modalTitle: { fontSize: 20, fontWeight: '800', color: COLORS.text },
-  closeBtn: { position: 'absolute', right: 0, padding: 5, backgroundColor: COLORS.background, borderRadius: 20 },
+    modalHeader: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', marginBottom: 20, position: 'relative' },
+    modalTitle: { fontSize: 20, fontWeight: '800', color: colors.text },
+    closeBtn: { position: 'absolute', right: 0, padding: 5, backgroundColor: colors.background, borderRadius: 20 },
 
-  modalId: { fontSize: 16, fontWeight: 'bold', color: COLORS.text, marginBottom: 4 },
-  modalDate: { color: COLORS.subText, fontSize: 14, fontWeight: '500' },
+    modalId: { fontSize: 16, fontWeight: 'bold', color: colors.text, marginBottom: 4 },
+    modalDate: { color: colors.subText, fontSize: 14, fontWeight: '500' },
 
-  dashedDivider: { height: 1, borderWidth: 1, borderColor: COLORS.borderColor, borderStyle: 'dashed', marginVertical: 15 },
+    dashedDivider: { height: 1, borderWidth: 1, borderColor: colors.borderColor, borderStyle: 'dashed', marginVertical: 15 },
 
-  detailRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginVertical: 8 },
-  detailName: { fontSize: 15, color: COLORS.text, fontWeight: '600', marginBottom: 4 },
-  detailQtyPrice: { fontSize: 14, color: COLORS.subText },
-  detailTotalPrice: { fontSize: 16, fontWeight: '800', color: COLORS.text },
+    detailRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginVertical: 8 },
+    detailName: { fontSize: 15, color: colors.text, fontWeight: '600', marginBottom: 4 },
+    detailQtyPrice: { fontSize: 14, color: colors.subText },
+    detailTotalPrice: { fontSize: 16, fontWeight: '800', color: colors.text },
 
-  totalRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 10, marginBottom: 30 },
-  totalLabel: { fontSize: 16, fontWeight: '800', color: COLORS.text },
-  totalValue: { fontSize: 24, fontWeight: '900', color: COLORS.primary },
+    totalRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 10, marginBottom: 30 },
+    totalLabel: { fontSize: 16, fontWeight: '800', color: colors.text },
+    totalValue: { fontSize: 24, fontWeight: '900', color: colors.primary },
 
-  deleteBtn: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', backgroundColor: '#FFF0F0', padding: 16, borderRadius: 16, borderWidth: 1, borderColor: '#FFE0E0' },
-  deleteBtnText: { color: COLORS.danger, fontSize: 16, fontWeight: 'bold' }
-});
+    deleteBtn: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', backgroundColor: isDark ? colors.danger + '20' : '#FFF0F0', padding: 16, borderRadius: 16, borderWidth: 1, borderColor: isDark ? colors.danger + '40' : '#FFE0E0' },
+    deleteBtnText: { color: colors.danger, fontSize: 16, fontWeight: 'bold' }
+  });
+}

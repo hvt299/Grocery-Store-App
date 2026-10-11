@@ -2,11 +2,12 @@ import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { DeviceEventEmitter } from 'react-native';
 
-export const BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'http://192.168.1.x:3001';
+export const BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'http://192.168.1.171:3001';
+const API_TIMEOUT = Number(process.env.EXPO_PUBLIC_API_TIMEOUT) || 30000;
 
 export const apiClient = axios.create({
     baseURL: `${BASE_URL}/api`,
-    timeout: 210000,
+    timeout: API_TIMEOUT,
 });
 
 apiClient.interceptors.request.use(

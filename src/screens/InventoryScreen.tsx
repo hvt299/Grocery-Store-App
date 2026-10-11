@@ -1,36 +1,65 @@
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useEffect, useState, useMemo, useRef, useCallback } from 'react';
 import {
-  View, Text, FlatList, StyleSheet, TouchableOpacity,
-  Modal, TextInput, Alert, KeyboardAvoidingView, Platform, RefreshControl,
-  TouchableWithoutFeedback, Keyboard, ActivityIndicator, ScrollView, Animated
+  View,
+  Text,
+  FlatList,
+  StyleSheet,
+  TouchableOpacity,
+  Modal,
+  TextInput,
+  Alert,
+  RefreshControl,
+  ActivityIndicator,
+  Animated,
+  Platform,
+  ScrollView,
 } from 'react-native';
 import { Image } from 'expo-image';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import NetInfo from '@react-native-community/netinfo';
 import { StatusBar } from 'expo-status-bar';
-
 import {
-  FolderOpen, Plus, Pencil, Trash2, Camera as CameraIcon,
-  ScanBarcode, Check, X, RefreshCw
+  FolderOpen,
+  Plus,
+  Pencil,
+  Trash2,
+  ScanBarcode,
+  Check,
+  X,
+  RefreshCw,
+  PackageOpen,
+  Tag,
+  SlidersHorizontal,
+  Lock,
 } from 'lucide-react-native';
 
 import {
-  getProducts, getCategories, deleteProduct,
-  addCategory, updateCategory, deleteCategory
+  getProducts,
+  getCategories,
+  deleteProduct,
+  addCategory,
+  updateCategory,
+  deleteCategory,
 } from '../services/productService';
 import { socket } from '../lib/socket';
 import { formatCurrency } from '../utils/format';
-import { SPACING } from '../constants/theme';
+import { SPACING, FONTS, SHADOWS } from '../constants/theme';
 import { ThemeContext } from '../context/ThemeContext';
+import { AuthContext } from '../context/AuthContext';
 import GlobalSearchBar from '../components/GlobalSearchBar';
 
 const SkeletonProductCard = ({ colors, styles }: any) => {
-  const fadeAnim = React.useRef(new Animated.Value(0.3)).current;
-  React.useEffect(() => {
-    Animated.loop(Animated.sequence([
-      Animated.timing(fadeAnim, { toValue: 1, duration: 800, useNativeDriver: true }),
-      Animated.timing(fadeAnim, { toValue: 0.3, duration: 800, useNativeDriver: true })
-    ])).start();
+  const fadeAnim = useRef(new Animated.Value(0.3)).current;
+
+  useEffect(() => {
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(fadeAnim, { toValue: 0.9, duration: 800, useNativeDriver: true }),
+        Animated.timing(fadeAnim, { toValue: 0.3, duration: 800, useNativeDriver: true }),
+      ])
+    );
+    loop.start();
+    return () => loop.stop();
   }, [fadeAnim]);
 
   return (
@@ -38,19 +67,19 @@ const SkeletonProductCard = ({ colors, styles }: any) => {
       <View style={styles.cardMainRow}>
         <View style={{ width: 64, height: 64, borderRadius: 14, backgroundColor: colors.borderColor }} />
         <View style={{ flex: 1, marginLeft: 12 }}>
-          <View style={{ width: '80%', height: 16, backgroundColor: colors.borderColor, borderRadius: 4, marginBottom: 8 }} />
-          <View style={{ width: '50%', height: 12, backgroundColor: colors.borderColor, borderRadius: 4, marginBottom: 12 }} />
-          <View style={{ width: 40, height: 14, backgroundColor: colors.borderColor, borderRadius: 4 }} />
+          <View style={{ width: '80%', height: 16, backgroundColor: colors.borderColor, borderRadius: 6, marginBottom: 8 }} />
+          <View style={{ width: '50%', height: 12, backgroundColor: colors.borderColor, borderRadius: 6, marginBottom: 12 }} />
+          <View style={{ width: 50, height: 14, backgroundColor: colors.borderColor, borderRadius: 6 }} />
         </View>
         <View style={{ alignItems: 'flex-end', justifyContent: 'center' }}>
-          <View style={{ width: 60, height: 16, backgroundColor: colors.borderColor, borderRadius: 4, marginBottom: 8 }} />
-          <View style={{ width: 40, height: 12, backgroundColor: colors.borderColor, borderRadius: 4 }} />
+          <View style={{ width: 70, height: 18, backgroundColor: colors.borderColor, borderRadius: 6, marginBottom: 8 }} />
+          <View style={{ width: 50, height: 12, backgroundColor: colors.borderColor, borderRadius: 6 }} />
         </View>
       </View>
-      <View style={[styles.cardActionRow, { borderTopWidth: 1, borderTopColor: colors.borderColor, paddingTop: 12 }]}>
-        <View style={{ width: 80, height: 24, backgroundColor: colors.borderColor, borderRadius: 8 }} />
+      <View style={[styles.cardActionRow, { borderTopWidth: 1, borderTopColor: colors.borderColor, paddingTop: 10 }]}>
+        <View style={{ width: 90, height: 24, backgroundColor: colors.borderColor, borderRadius: 8 }} />
         <View style={{ flexDirection: 'row' }}>
-          <View style={{ width: 34, height: 34, backgroundColor: colors.borderColor, borderRadius: 10, marginRight: 10 }} />
+          <View style={{ width: 34, height: 34, backgroundColor: colors.borderColor, borderRadius: 10, marginRight: 8 }} />
           <View style={{ width: 34, height: 34, backgroundColor: colors.borderColor, borderRadius: 10 }} />
         </View>
       </View>
@@ -58,75 +87,125 @@ const SkeletonProductCard = ({ colors, styles }: any) => {
   );
 };
 
-const ProductCard = React.memo(({ item, onEdit, onDelete }: { item: any, onEdit: any, onDelete: any }) => {
-  const { colors, isDark } = React.useContext(ThemeContext);
-  const styles = createStyles(colors, isDark);
+// Memoized Product Card with strict role checks (Cost price hidden from Cashier)
+const ProductCard = React.memo(
+  ({
+    item,
+    isAdmin,
+    onEdit,
+    onDelete,
+    colors,
+    styles,
+  }: {
+    item: any;
+    isAdmin: boolean;
+    onEdit: (item: any) => void;
+    onDelete: (id: string) => void;
+    colors: any;
+    styles: any;
+  }) => {
+    const stock = Number(item?.stock) || 0;
+    const price = Number(item?.price) || 0;
+    const costPrice = Number(item?.costPrice) || 0;
+    const safeName = item?.name || 'Sản phẩm';
 
-  const getStockColor = (stock: number) => {
-    if (stock <= 0) return colors.danger;
-    if (stock <= 10) return colors.warning;
-    return colors.success;
-  };
+    const getStockStatus = () => {
+      if (stock <= 0) return { label: 'Hết hàng', color: colors.danger, bg: colors.dangerLight };
+      if (stock <= 10)
+        return { label: `Sắp hết: ${stock} ${item.unit || ''}`, color: colors.warning, bg: colors.warningLight };
+      return { label: `Tồn kho: ${stock} ${item.unit || ''}`, color: colors.success, bg: colors.successLight };
+    };
 
-  return (
-    <View style={styles.itemCard}>
-      <View style={styles.cardMainRow}>
-        <View style={styles.imgContainer}>
-          {item.imageUrl ? (
-            <Image
-              source={{ uri: item.imageUrl }}
-              style={styles.itemImg}
-              contentFit="cover"
-              transition={200}
-              cachePolicy="memory-disk"
-            />
-          ) : (
-            <View style={styles.itemImgPlaceholder}><Text style={styles.itemImgText}>{item.name.charAt(0).toUpperCase()}</Text></View>
-          )}
-        </View>
+    const status = getStockStatus();
 
-        <View style={{ flex: 1, marginLeft: 12 }}>
-          <Text style={styles.itemName} numberOfLines={1}>{item.name}</Text>
-          <Text style={styles.itemCategory} numberOfLines={1}>{item.categories?.name || 'Chưa phân loại'}</Text>
+    return (
+      <View style={styles.itemCard}>
+        <View style={styles.cardMainRow}>
+          <View style={styles.imgContainer}>
+            {item?.imageUrl ? (
+              <Image
+                source={{ uri: item.imageUrl }}
+                style={styles.itemImg}
+                contentFit="cover"
+                transition={150}
+                cachePolicy="memory-disk"
+                recyclingKey={item._id}
+              />
+            ) : (
+              <View style={styles.itemImgPlaceholder}>
+                <Text style={styles.itemImgText}>{safeName.charAt(0).toUpperCase()}</Text>
+              </View>
+            )}
+          </View>
 
-          <View style={styles.skuRow}>
-            <ScanBarcode size={14} color={colors.subText} />
-            <Text style={[styles.skuText, !item.sku && { fontStyle: 'italic', color: colors.subText }]} numberOfLines={1}>
-              {item.sku ? item.sku : 'Chưa có mã'}
+          <View style={{ flex: 1, marginLeft: 12 }}>
+            <Text style={styles.itemName} numberOfLines={1}>
+              {safeName}
             </Text>
+            <Text style={styles.itemCategory} numberOfLines={1}>
+              {item.categories?.name || 'Chưa phân loại'}
+            </Text>
+
+            <View style={styles.skuRow}>
+              <ScanBarcode size={13} color={colors.subText} strokeWidth={2} />
+              <Text style={[styles.skuText, !item.sku && { fontStyle: 'italic', color: colors.mutedText }]} numberOfLines={1}>
+                {item.sku ? item.sku : 'Chưa có mã'}
+              </Text>
+            </View>
+          </View>
+
+          <View style={{ alignItems: 'flex-end', justifyContent: 'center' }}>
+            <Text style={styles.itemPrice}>{formatCurrency(price)}</Text>
+            {/* Quyền bảo mật: CHỈ ADMIN MỚI THẤY GIÁ VỐN */}
+            {isAdmin ? (
+              <Text style={styles.itemCost}>Vốn: {formatCurrency(costPrice)}</Text>
+            ) : (
+              <View style={styles.cashierLockRow}>
+                <Lock size={10} color={colors.subText} />
+                <Text style={styles.cashierLockText}>Giá sỉ bảo mật</Text>
+              </View>
+            )}
           </View>
         </View>
 
-        <View style={{ alignItems: 'flex-end', justifyContent: 'center' }}>
-          <Text style={styles.itemPrice}>{formatCurrency(item.price)}</Text>
-          <Text style={styles.itemCost}>Vốn: {formatCurrency(item.costPrice || 0)}</Text>
+        <View style={styles.cardActionRow}>
+          <View style={[styles.stockBadge, { backgroundColor: status.bg }]}>
+            <Text style={[styles.stockBadgeText, { color: status.color }]}>{status.label}</Text>
+          </View>
+
+          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+            <TouchableOpacity style={styles.actionBtn} onPress={() => onEdit(item)} activeOpacity={0.7}>
+              <Pencil size={16} color={colors.primary} strokeWidth={2.2} />
+            </TouchableOpacity>
+
+            {/* Quyền bảo mật: CHỈ ADMIN MỚI ĐƯỢC XÓA SẢN PHẨM KHỎI KHO */}
+            {isAdmin && (
+              <TouchableOpacity
+                style={[styles.actionBtn, { marginRight: 0, backgroundColor: colors.dangerLight }]}
+                onPress={() => onDelete(item._id)}
+                activeOpacity={0.7}
+              >
+                <Trash2 size={16} color={colors.danger} strokeWidth={2.2} />
+              </TouchableOpacity>
+            )}
+          </View>
         </View>
       </View>
-
-      <View style={styles.cardActionRow}>
-        <View style={[styles.stockBadge, { backgroundColor: getStockColor(item.stock) + '20' }]}>
-          <Text style={[styles.stockBadgeText, { color: getStockColor(item.stock) }]}>
-            {item.stock <= 0 ? 'Hết hàng' : `Tồn kho: ${item.stock} ${item.unit || ''}`}
-          </Text>
-        </View>
-
-        <View style={{ flexDirection: 'row' }}>
-          <TouchableOpacity style={styles.actionBtn} onPress={() => onEdit(item)}>
-            <Pencil size={18} color={colors.primary} strokeWidth={2} />
-          </TouchableOpacity>
-          <TouchableOpacity style={[styles.actionBtn, { marginRight: 0 }]} onPress={() => onDelete(item._id)}>
-            <Trash2 size={18} color={colors.danger} strokeWidth={2} />
-          </TouchableOpacity>
-        </View>
-      </View>
-    </View>
-  );
-});
+    );
+  },
+  (prev, next) =>
+    prev.item._id === next.item._id &&
+    prev.item.price === next.item.price &&
+    prev.item.stock === next.item.stock &&
+    prev.item.costPrice === next.item.costPrice &&
+    prev.item.imageUrl === next.item.imageUrl &&
+    prev.isAdmin === next.isAdmin
+);
 
 export default function InventoryScreen({ navigation, route }: any) {
   const { colors, isDark } = React.useContext(ThemeContext);
+  const { isAdmin } = React.useContext(AuthContext);
   const styles = createStyles(colors, isDark);
-
   const insets = useSafeAreaInsets();
 
   const [products, setProducts] = useState<any[]>([]);
@@ -157,7 +236,7 @@ export default function InventoryScreen({ navigation, route }: any) {
     socket.on('product_changed', () => setHasNewData(true));
     socket.on('category_changed', fetchCategories);
 
-    const unsubscribeNet = NetInfo.addEventListener(state => {
+    const unsubscribeNet = NetInfo.addEventListener((state) => {
       if (state.isConnected) fetchProducts(1, true);
     });
 
@@ -171,7 +250,7 @@ export default function InventoryScreen({ navigation, route }: any) {
   useEffect(() => {
     const delayDebounceFn = setTimeout(() => {
       fetchProducts(1, true);
-    }, 500);
+    }, 350);
     return () => clearTimeout(delayDebounceFn);
   }, [searchText, filterCatId]);
 
@@ -191,49 +270,51 @@ export default function InventoryScreen({ navigation, route }: any) {
   const fetchCategories = async () => {
     try {
       const cats = await getCategories();
-      setCategories(cats);
-    } catch (error) { console.log('Lỗi tải danh mục'); }
+      setCategories(Array.isArray(cats) ? cats : []);
+    } catch (error) {
+      console.log('Lỗi tải danh mục');
+    }
   };
 
   const fetchProducts = async (pageNumber = 1, isReset = false) => {
     if (isReset && !refreshing) setInitialLoading(true);
     try {
-      const res = await getProducts(pageNumber, 20, searchText, filterCatId);
-      const newData = res.data || [];
+      const res = await getProducts(pageNumber, 16, searchText, filterCatId);
+      const newData = res?.data || [];
       if (isReset) setProducts(newData);
-      else setProducts(prev => [...prev, ...newData]);
+      else setProducts((prev) => [...prev, ...newData]);
 
-      setPage(res.page);
-      setTotalPages(res.totalPages);
-      setTotalProducts(res.total);
-    } catch (error) { console.log('Lỗi tải sản phẩm'); }
-    finally { setInitialLoading(false); }
+      setPage(res?.page || 1);
+      setTotalPages(res?.totalPages || 1);
+      setTotalProducts(res?.total || newData.length);
+    } catch (error) {
+      console.log('Lỗi tải sản phẩm');
+    } finally {
+      setInitialLoading(false);
+      setLoadingMore(false);
+    }
   };
 
   const loadMore = async () => {
     if (page < totalPages && !loadingMore) {
       setLoadingMore(true);
       await fetchProducts(page + 1, false);
-      setLoadingMore(false);
     }
   };
 
   const onRefresh = () => {
     setRefreshing(true);
-
     setTimeout(async () => {
       try {
         await fetchCategories();
         await fetchProducts(1, true);
-
         setHasNewData(false);
-
       } catch (error) {
-        console.log('Lỗi trong quá trình pull-to-refresh:', error);
+        console.log('Lỗi pull-to-refresh:', error);
       } finally {
         setRefreshing(false);
       }
-    }, 400);
+    }, 300);
   };
 
   const openScanner = (mode: 'search' | 'sku') => {
@@ -241,112 +322,193 @@ export default function InventoryScreen({ navigation, route }: any) {
   };
 
   const openAddProduct = () => {
+    if (!isAdmin) {
+      Alert.alert('Quyền hạn bị giới hạn', 'Chỉ Chủ cửa hàng (Admin) mới có quyền tạo thêm sản phẩm mới vào kho!');
+      return;
+    }
     navigation.navigate('AddEditProduct');
   };
 
   const openEditProduct = (item: any) => {
+    if (!isAdmin) {
+      Alert.alert('Quyền hạn bị giới hạn', 'Chỉ Chủ cửa hàng (Admin) mới có quyền chỉnh sửa thông số và giá vốn sản phẩm!');
+      return;
+    }
     navigation.navigate('AddEditProduct', { product: item });
   };
 
   const handleDeleteProduct = (id: string) => {
-    Alert.alert('Xóa món này?', 'Món hàng sẽ được ẩn khỏi hệ thống.', [{ text: 'Hủy', style: 'cancel' }, { text: 'Xóa', style: 'destructive', onPress: async () => { await deleteProduct(id); await fetchProducts(1, true); } }]);
+    if (!isAdmin) {
+      Alert.alert('Từ chối thao tác', 'Thu ngân không có quyền xóa sản phẩm khỏi kho hàng!');
+      return;
+    }
+    Alert.alert('Xóa sản phẩm?', 'Món hàng này sẽ được gỡ khỏi kho và danh sách POS.', [
+      { text: 'Hủy', style: 'cancel' },
+      {
+        text: 'Xóa ngay',
+        style: 'destructive',
+        onPress: async () => {
+          await deleteProduct(id);
+          await fetchProducts(1, true);
+        },
+      },
+    ]);
+  };
+
+  const openCategoryModal = () => {
+    if (!isAdmin) {
+      Alert.alert('Quyền hạn bị giới hạn', 'Chỉ Chủ cửa hàng (Admin) mới có quyền quản lý và sửa đổi danh mục ngành hàng!');
+      return;
+    }
+    setCatModalVisible(true);
   };
 
   const handleSaveCategory = async () => {
     if (!catName.trim()) return;
     try {
-      if (editingCatId) await updateCategory(editingCatId, catName); else await addCategory(catName);
-      setCatName(''); setEditingCatId(null); await fetchCategories();
-    } catch (error) { Alert.alert('Lỗi', 'Không lưu được danh mục'); }
+      if (editingCatId) await updateCategory(editingCatId, catName.trim());
+      else await addCategory(catName.trim());
+      setCatName('');
+      setEditingCatId(null);
+      await fetchCategories();
+    } catch (error) {
+      Alert.alert('Lỗi', 'Không thể lưu danh mục.');
+    }
   };
 
-  const handleEditCategory = (item: any) => { setCatName(item.name); setEditingCatId(item._id); };
+  const handleEditCategory = (item: any) => {
+    setCatName(item.name);
+    setEditingCatId(item._id);
+  };
+
   const handleDeleteCategory = (id: string) => {
-    Alert.alert('Xóa danh mục?', 'Danh mục sẽ bị ẩn đi.', [{ text: 'Hủy', style: 'cancel' }, { text: 'Xóa', style: 'destructive', onPress: async () => { await deleteCategory(id); await fetchCategories(); } }]);
+    Alert.alert('Xóa danh mục?', 'Các sản phẩm thuộc nhóm này sẽ chuyển về chưa phân loại.', [
+      { text: 'Hủy', style: 'cancel' },
+      {
+        text: 'Xóa',
+        style: 'destructive',
+        onPress: async () => {
+          await deleteCategory(id);
+          await fetchCategories();
+        },
+      },
+    ]);
   };
 
   const displayedProducts = useMemo(() => {
     let result = [...products];
-    if (stockFilter === 'in_stock') result = result.filter(p => p.stock > 10);
-    else if (stockFilter === 'low_stock') result = result.filter(p => p.stock > 0 && p.stock <= 10);
-    else if (stockFilter === 'out_of_stock') result = result.filter(p => p.stock <= 0);
+    if (stockFilter === 'in_stock') result = result.filter((p) => Number(p.stock) > 10);
+    else if (stockFilter === 'low_stock')
+      result = result.filter((p) => Number(p.stock) > 0 && Number(p.stock) <= 10);
+    else if (stockFilter === 'out_of_stock') result = result.filter((p) => Number(p.stock) <= 0);
 
-    if (priceSort === 'asc') result.sort((a, b) => a.price - b.price);
-    else if (priceSort === 'desc') result.sort((a, b) => b.price - a.price);
+    if (priceSort === 'asc') result.sort((a, b) => Number(a.price) - Number(b.price));
+    else if (priceSort === 'desc') result.sort((a, b) => Number(b.price) - Number(a.price));
 
     return result;
   }, [products, stockFilter, priceSort]);
 
   const resetFilters = () => {
-    setStockFilter('all'); setPriceSort('default'); setFilterCatId(null);
+    setStockFilter('all');
+    setPriceSort('default');
+    setFilterCatId(null);
   };
 
-  const renderItem = React.useCallback(({ item }: { item: any }) => (
-    <ProductCard
-      item={item}
-      onEdit={openEditProduct}
-      onDelete={handleDeleteProduct}
-    />
-  ), []);
+  const renderItem = useCallback(
+    ({ item }: { item: any }) => (
+      <ProductCard
+        item={item}
+        isAdmin={isAdmin}
+        onEdit={openEditProduct}
+        onDelete={handleDeleteProduct}
+        colors={colors}
+        styles={styles}
+      />
+    ),
+    [isAdmin, openEditProduct, handleDeleteProduct, colors, styles]
+  );
 
   return (
     <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
-      <StatusBar style={isDark ? "light" : "dark"} />
+      <StatusBar style={isDark ? 'light' : 'dark'} />
 
       {/* HEADER */}
       <View style={styles.header}>
         <View>
-          <Text style={styles.headerTitle}>Kho Hàng ({totalProducts})</Text>
-          <Text style={styles.headerSub}>Quản lý sản phẩm & tồn kho</Text>
+          <Text style={styles.headerTitle}>Kho hàng ({totalProducts})</Text>
+          <Text style={styles.headerSub}>
+            {isAdmin ? 'Quản lý sản phẩm, đơn giá & giá vốn' : 'Tra cứu tồn kho & đơn giá bán'}
+          </Text>
         </View>
-        <TouchableOpacity onPress={() => setCatModalVisible(true)} style={styles.iconBtn}>
-          <FolderOpen size={24} color={colors.primary} strokeWidth={2} />
+
+        <TouchableOpacity onPress={openCategoryModal} style={styles.iconBtn} activeOpacity={0.8}>
+          <FolderOpen size={22} color={colors.primary} strokeWidth={2.2} />
         </TouchableOpacity>
       </View>
 
-      {/* TÌM KIẾM */}
+      {/* SEARCH & SCAN BUTTON */}
       <View style={styles.searchSection}>
         <View style={{ flex: 1 }}>
           <GlobalSearchBar
-            placeholder="Tìm tên hoặc mã..." value={searchText} onChangeText={setSearchText}
+            placeholder="Tìm tên sản phẩm hoặc mã vạch..."
+            value={searchText}
+            onChangeText={setSearchText}
             onFilterPress={() => setFilterModalVisible(true)}
           />
         </View>
-        <TouchableOpacity style={styles.searchScanBtn} onPress={() => openScanner('search')}>
-          <ScanBarcode size={24} color="white" strokeWidth={2} />
+        <TouchableOpacity style={styles.searchScanBtn} onPress={() => openScanner('search')} activeOpacity={0.85}>
+          <ScanBarcode size={22} color="white" strokeWidth={2.4} />
         </TouchableOpacity>
       </View>
 
-      {/* BỘ LỌC NHANH */}
-      <View style={{ paddingBottom: 10 }}>
+      {/* QUICK CATEGORY CHIPS */}
+      <View style={{ marginBottom: 10 }}>
         <FlatList
-          horizontal data={[{ _id: null, name: 'Tất cả' }, ...categories]}
-          keyExtractor={item => item._id ? item._id.toString() : 'all'}
-          showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: SPACING }}
+          horizontal
+          data={[{ _id: null, name: 'Tất cả' }, ...categories]}
+          keyExtractor={(item, index) => (item?._id ? String(item._id) : `chip-${index}`)}
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={{ paddingHorizontal: SPACING }}
           renderItem={({ item }) => {
             const isActive = filterCatId === item._id;
             return (
-              <TouchableOpacity style={[styles.filterChip, isActive && styles.filterChipActive]} onPress={() => setFilterCatId(item._id)}>
+              <TouchableOpacity
+                style={[styles.filterChip, isActive && styles.filterChipActive]}
+                onPress={() => setFilterCatId(item._id)}
+                activeOpacity={0.7}
+              >
+                <Tag
+                  size={13}
+                  color={isActive ? 'white' : colors.subText}
+                  strokeWidth={2.2}
+                  style={{ marginRight: 5 }}
+                />
                 <Text style={[styles.filterText, isActive && styles.filterTextActive]}>{item.name}</Text>
               </TouchableOpacity>
-            )
+            );
           }}
         />
       </View>
 
-      {/* THÔNG BÁO DỮ LIỆU */}
+      {/* REAL-TIME NOTIFICATION BANNER */}
       {hasNewData && (
         <View style={styles.inlineNewDataContainer}>
-          <TouchableOpacity style={styles.newDataPill} onPress={() => { setHasNewData(false); fetchProducts(1, true); }}>
+          <TouchableOpacity
+            style={styles.newDataPill}
+            onPress={() => {
+              setHasNewData(false);
+              fetchProducts(1, true);
+            }}
+          >
             <RefreshCw size={14} color="white" style={{ marginRight: 6 }} />
-            <Text style={styles.newDataText}>Có thay đổi kho hàng. Chạm để tải lại!</Text>
+            <Text style={styles.newDataText}>Kho hàng có cập nhật mới. Nhấn để tải lại!</Text>
           </TouchableOpacity>
         </View>
       )}
 
-      {/* DANH SÁCH */}
+      {/* PRODUCT LIST - AGGRESSIVE VIRTUALIZATION TO PREVENT OOM CRASH */}
       {initialLoading ? (
-        <View style={{ paddingHorizontal: SPACING, paddingTop: 10 }}>
+        <View style={{ paddingHorizontal: SPACING, paddingTop: 4 }}>
           <SkeletonProductCard colors={colors} styles={styles} />
           <SkeletonProductCard colors={colors} styles={styles} />
           <SkeletonProductCard colors={colors} styles={styles} />
@@ -355,235 +517,594 @@ export default function InventoryScreen({ navigation, route }: any) {
       ) : (
         <FlatList
           data={displayedProducts}
-          keyExtractor={(item) => item._id.toString()}
+          keyExtractor={(item, index) => (item?._id ? String(item._id) : `prod-${index}`)}
           contentContainerStyle={{ paddingHorizontal: SPACING, paddingBottom: 120 }}
           showsVerticalScrollIndicator={false}
-
-          initialNumToRender={8}
-          maxToRenderPerBatch={10}
-          windowSize={5}
+          initialNumToRender={6}
+          maxToRenderPerBatch={6}
+          windowSize={3}
           removeClippedSubviews={Platform.OS === 'android'}
-
-          ListEmptyComponent={<Text style={{ textAlign: 'center', marginTop: 40, color: colors.subText, fontStyle: 'italic' }}>Không có sản phẩm nào</Text>}
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[colors.primary]} tintColor={colors.primary} />}
+          updateCellsBatchingPeriod={50}
+          ListEmptyComponent={
+            <View style={styles.emptyContainer}>
+              <PackageOpen size={48} color={colors.subText} strokeWidth={1.8} style={{ opacity: 0.6, marginBottom: 12 }} />
+              <Text style={styles.emptyTitle}>Kho hàng trống</Text>
+              <Text style={styles.emptySub}>Chưa có sản phẩm nào phù hợp với bộ lọc</Text>
+            </View>
+          }
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              colors={[colors.primary]}
+              tintColor={colors.primary}
+            />
+          }
           onEndReached={loadMore}
-          onEndReachedThreshold={0.5}
-          ListFooterComponent={loadingMore ? <ActivityIndicator size="small" color={colors.primary} style={{ margin: 20 }} /> : null}
-
+          onEndReachedThreshold={0.4}
+          ListFooterComponent={
+            loadingMore ? (
+              <ActivityIndicator size="small" color={colors.primary} style={{ margin: 16 }} />
+            ) : null
+          }
           renderItem={renderItem}
         />
       )}
 
-      <TouchableOpacity
-        style={[
-          styles.fab,
-          {
-            bottom: Platform.OS === 'android'
-              ? (62 + (insets.bottom > 0 ? insets.bottom : 10) + 16)
-              : 98
-          }
-        ]}
-        onPress={openAddProduct}
-        activeOpacity={0.8}
+      {/* FLOATING ACTION BUTTON (ADD PRODUCT - ONLY FOR ADMIN) */}
+      {isAdmin && (
+        <TouchableOpacity
+          style={[
+            styles.fab,
+            {
+              bottom:
+                Platform.OS === 'android'
+                  ? 64 + (insets.bottom > 0 ? insets.bottom : 8) + 16
+                  : 98,
+            },
+          ]}
+          onPress={openAddProduct}
+          activeOpacity={0.85}
+        >
+          <Plus size={28} color="white" strokeWidth={2.6} />
+        </TouchableOpacity>
+      )}
+
+      {/* ADVANCED FILTER MODAL - CENTER DISPLAY MODAL (Đổi sang giữa màn hình) */}
+      <Modal
+        visible={filterModalVisible}
+        animationType="fade"
+        transparent={true}
+        onRequestClose={() => setFilterModalVisible(false)}
       >
-        <Plus size={32} color="white" strokeWidth={2.5} />
-      </TouchableOpacity>
-
-      {/* BOTTOM SHEET LỌC */}
-      <Modal visible={filterModalVisible} animationType="slide" transparent={true}>
-        <View style={styles.modalOverlayCart}>
-          <TouchableOpacity style={{ flex: 1 }} onPress={() => setFilterModalVisible(false)} />
-          <View style={styles.bottomSheetContent}>
-            <View style={styles.modalHandle} />
+        <View style={styles.modalCenterOverlay}>
+          <View style={styles.modalCenterCard}>
             <View style={styles.modalHeaderRow}>
-              <Text style={styles.modalTitle}>Bộ lọc nâng cao</Text>
-              <TouchableOpacity onPress={() => setFilterModalVisible(false)}>
-                <X size={24} color={colors.text} />
+              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                <SlidersHorizontal size={20} color={colors.primary} strokeWidth={2.4} />
+                <Text style={styles.modalTitle}>Bộ lọc sản phẩm</Text>
+              </View>
+              <TouchableOpacity onPress={() => setFilterModalVisible(false)} style={styles.closeBtn}>
+                <X size={20} color={colors.text} strokeWidth={2.4} />
               </TouchableOpacity>
             </View>
 
-            <Text style={styles.filterSectionTitle}>Trạng thái tồn kho</Text>
-            <View style={styles.chipRow}>
-              {[{ id: 'all', label: 'Tất cả' }, { id: 'in_stock', label: 'Còn nhiều' }, { id: 'low_stock', label: 'Sắp hết' }, { id: 'out_of_stock', label: 'Hết hàng' }].map(item => (
-                <TouchableOpacity key={item.id} style={[styles.bsChip, stockFilter === item.id && styles.bsChipActive]} onPress={() => setStockFilter(item.id)}>
-                  <Text style={[styles.bsChipText, stockFilter === item.id && styles.bsChipTextActive]}>{item.label}</Text>
-                </TouchableOpacity>
-              ))}
-            </View>
+            <ScrollView showsVerticalScrollIndicator={false}>
+              <Text style={styles.filterSectionTitle}>Trạng thái tồn kho</Text>
+              <View style={styles.chipGroup}>
+                {[
+                  { key: 'all', label: 'Tất cả' },
+                  { key: 'in_stock', label: 'Còn hàng (>10)' },
+                  { key: 'low_stock', label: 'Sắp hết (1-10)' },
+                  { key: 'out_of_stock', label: 'Hết hàng' },
+                ].map((f) => (
+                  <TouchableOpacity
+                    key={f.key}
+                    style={[styles.modalChip, stockFilter === f.key && styles.modalChipActive]}
+                    onPress={() => setStockFilter(f.key)}
+                  >
+                    <Text style={[styles.modalChipText, stockFilter === f.key && styles.modalChipTextActive]}>
+                      {f.label}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
 
-            <Text style={styles.filterSectionTitle}>Danh mục sản phẩm</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 15 }}>
-              <TouchableOpacity style={[styles.bsChip, filterCatId === null && styles.bsChipActive]} onPress={() => setFilterCatId(null)}>
-                <Text style={[styles.bsChipText, filterCatId === null && styles.bsChipTextActive]}>Tất cả</Text>
-              </TouchableOpacity>
-              {categories.map(cat => (
-                <TouchableOpacity key={cat._id} style={[styles.bsChip, filterCatId === cat._id && styles.bsChipActive]} onPress={() => setFilterCatId(cat._id)}>
-                  <Text style={[styles.bsChipText, filterCatId === cat._id && styles.bsChipTextActive]}>{cat.name}</Text>
-                </TouchableOpacity>
-              ))}
+              <Text style={styles.filterSectionTitle}>Sắp xếp theo giá</Text>
+              <View style={styles.chipGroup}>
+                {[
+                  { key: 'default', label: 'Mặc định' },
+                  { key: 'asc', label: 'Giá tăng dần' },
+                  { key: 'desc', label: 'Giá giảm dần' },
+                ].map((s) => (
+                  <TouchableOpacity
+                    key={s.key}
+                    style={[styles.modalChip, priceSort === s.key && styles.modalChipActive]}
+                    onPress={() => setPriceSort(s.key)}
+                  >
+                    <Text style={[styles.modalChipText, priceSort === s.key && styles.modalChipTextActive]}>
+                      {s.label}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
             </ScrollView>
 
-            <Text style={styles.filterSectionTitle}>Sắp xếp giá bán</Text>
-            <View style={styles.chipRow}>
-              {[{ id: 'default', label: 'Mặc định' }, { id: 'asc', label: 'Thấp đến Cao' }, { id: 'desc', label: 'Cao đến Thấp' }].map(item => (
-                <TouchableOpacity key={item.id} style={[styles.bsChip, priceSort === item.id && styles.bsChipActive]} onPress={() => setPriceSort(item.id)}>
-                  <Text style={[styles.bsChipText, priceSort === item.id && styles.bsChipTextActive]}>{item.label}</Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-
-            <View style={[styles.bsFooter, { paddingBottom: Math.max(insets.bottom, 20) }]}>
-              <TouchableOpacity style={styles.bsBtnReset} onPress={resetFilters}>
-                <Text style={styles.bsBtnResetText}>Thiết lập lại</Text>
+            <View style={styles.modalActionRow}>
+              <TouchableOpacity style={styles.resetBtn} onPress={resetFilters}>
+                <Text style={styles.resetBtnText}>Đặt lại</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={styles.bsBtnApply} onPress={() => setFilterModalVisible(false)}>
-                <Text style={styles.bsBtnApplyText}>Áp dụng</Text>
+              <TouchableOpacity style={styles.applyBtn} onPress={() => setFilterModalVisible(false)}>
+                <Text style={styles.applyBtnText}>Áp dụng</Text>
               </TouchableOpacity>
             </View>
           </View>
         </View>
       </Modal>
 
-      {/* --- MODAL DANH MỤC --- */}
-      <Modal visible={catModalVisible} animationType="fade" transparent={true}>
-        <TouchableWithoutFeedback onPress={() => { Keyboard.dismiss(); setCatModalVisible(false); }}>
-          <View style={styles.modalOverlayCart}>
-            <TouchableWithoutFeedback onPress={() => { }}>
-              <View style={[styles.bottomSheetContent, { maxHeight: '75%', paddingBottom: Math.max(insets.bottom, 20) }]}>
-                <View style={styles.modalHeaderRow}>
-                  <Text style={styles.modalTitle}>Quản lý Danh mục</Text>
-                  <TouchableOpacity onPress={() => setCatModalVisible(false)}><X size={24} color={colors.text} /></TouchableOpacity>
-                </View>
-                <View style={styles.addCatRow}>
-                  <TextInput style={[styles.input, { marginBottom: 0, flex: 1 }]} placeholder="Nhập tên danh mục mới..."  placeholderTextColor={colors.subText} value={catName} onChangeText={setCatName} />
-                  <TouchableOpacity style={styles.addCatBtn} onPress={handleSaveCategory}>
-                    {editingCatId ? <Check size={24} color="white" /> : <Plus size={24} color="white" />}
-                  </TouchableOpacity>
-                  {editingCatId && (
-                    <TouchableOpacity style={[styles.addCatBtn, { backgroundColor: colors.subText, marginLeft: 8 }]} onPress={() => { setEditingCatId(null); setCatName(''); }}>
-                      <X size={24} color="white" />
-                    </TouchableOpacity>
-                  )}
-                </View>
-                <FlatList
-                  data={categories} keyExtractor={item => item._id.toString()} showsVerticalScrollIndicator={false}
-                  renderItem={({ item }) => (
-                    <View style={styles.catItemRow}>
-                      <Text style={styles.catItemText}>{item.name}</Text>
-                      <View style={{ flexDirection: 'row' }}>
-                        <TouchableOpacity onPress={() => handleEditCategory(item)} style={{ padding: 8 }}>
-                          <Pencil size={20} color={colors.primary} />
-                        </TouchableOpacity>
-                        <TouchableOpacity onPress={() => handleDeleteCategory(item._id)} style={{ padding: 8 }}>
-                          <Trash2 size={20} color={colors.danger} />
-                        </TouchableOpacity>
-                      </View>
-                    </View>
-                  )} />
+      {/* CATEGORY MANAGEMENT MODAL - CENTER DISPLAY MODAL (Đổi sang giữa màn hình) */}
+      <Modal
+        visible={catModalVisible}
+        animationType="fade"
+        transparent={true}
+        onRequestClose={() => setCatModalVisible(false)}
+      >
+        <View style={styles.modalCenterOverlay}>
+          <View style={styles.modalCenterCard}>
+            <View style={styles.modalHeaderRow}>
+              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                <FolderOpen size={20} color={colors.primary} strokeWidth={2.4} />
+                <Text style={styles.modalTitle}>Quản lý danh mục hàng</Text>
               </View>
-            </TouchableWithoutFeedback>
+              <TouchableOpacity onPress={() => setCatModalVisible(false)} style={styles.closeBtn}>
+                <X size={20} color={colors.text} strokeWidth={2.4} />
+              </TouchableOpacity>
+            </View>
+
+            {/* Input thêm / sửa danh mục */}
+            <View style={styles.catInputRow}>
+              <TextInput
+                style={styles.catTextInput}
+                placeholder={editingCatId ? 'Sửa tên danh mục...' : 'Thêm tên danh mục mới...'}
+                placeholderTextColor={colors.subText}
+                value={catName}
+                onChangeText={setCatName}
+                selectionColor={colors.primary}
+              />
+              <TouchableOpacity style={styles.saveCatBtn} onPress={handleSaveCategory} activeOpacity={0.8}>
+                <Check size={18} color="white" strokeWidth={2.5} />
+              </TouchableOpacity>
+              {editingCatId && (
+                <TouchableOpacity
+                  style={styles.cancelEditCatBtn}
+                  onPress={() => {
+                    setEditingCatId(null);
+                    setCatName('');
+                  }}
+                >
+                  <X size={18} color={colors.text} strokeWidth={2.5} />
+                </TouchableOpacity>
+              )}
+            </View>
+
+            {/* Danh sách danh mục */}
+            <ScrollView style={{ maxHeight: 250 }} showsVerticalScrollIndicator={false}>
+              {categories.map((cat) => (
+                <View key={cat._id} style={styles.catItemRow}>
+                  <Text style={styles.catItemName}>{cat.name}</Text>
+                  <View style={{ flexDirection: 'row' }}>
+                    <TouchableOpacity onPress={() => handleEditCategory(cat)} style={styles.catActionBtn}>
+                      <Pencil size={16} color={colors.primary} strokeWidth={2.2} />
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      onPress={() => handleDeleteCategory(cat._id)}
+                      style={[styles.catActionBtn, { backgroundColor: colors.dangerLight, marginRight: 0 }]}
+                    >
+                      <Trash2 size={16} color={colors.danger} strokeWidth={2.2} />
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              ))}
+            </ScrollView>
           </View>
-        </TouchableWithoutFeedback>
+        </View>
       </Modal>
     </SafeAreaView>
   );
 }
 
-function createStyles(colors: any, isDark: boolean) {
-  return StyleSheet.create({
-    container: { flex: 1, backgroundColor: colors.background },
-    header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: SPACING, paddingTop: 10, paddingBottom: 15 },
-    headerTitle: { fontSize: 24, fontWeight: '800', color: colors.text },
-    headerSub: { fontSize: 14, color: colors.subText, marginTop: 2 },
-    iconBtn: { padding: 10, backgroundColor: colors.primaryLight, borderRadius: 12 },
-
-    searchSection: { flexDirection: 'row', paddingHorizontal: SPACING, marginBottom: 15 },
-    searchScanBtn: { width: 50, height: 50, backgroundColor: colors.primary, borderRadius: 16, justifyContent: 'center', alignItems: 'center', marginLeft: 10, shadowColor: colors.primary, shadowOpacity: 0.3, shadowRadius: 5, elevation: 3 },
-
-    filterChip: { paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20, backgroundColor: colors.card, marginRight: 10, borderWidth: 1, borderColor: colors.borderColor },
-    filterChipActive: { backgroundColor: colors.primary, borderColor: colors.primary },
-    filterText: { color: colors.subText, fontWeight: '600', fontSize: 14 },
-    filterTextActive: { color: 'white' },
-
-    itemCard: { backgroundColor: colors.card, padding: 14, borderRadius: 20, marginBottom: 12, shadowColor: "#000", shadowOpacity: 0.03, shadowRadius: 8, elevation: 2 },
-    cardMainRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 12 },
-    imgContainer: { width: 64, height: 64, borderRadius: 14, overflow: 'hidden', justifyContent: 'center', alignItems: 'center', backgroundColor: isDark ? '#1a2235' : '#F0F4F8' },
-    itemImg: { width: '100%', height: '100%' },
-    itemImgPlaceholder: { width: '100%', height: '100%', justifyContent: 'center', alignItems: 'center', backgroundColor: colors.primaryLight },
-    itemImgText: { fontSize: 24, fontWeight: 'bold', color: colors.primary },
-
-    itemName: { fontSize: 16, fontWeight: '700', color: colors.text, marginBottom: 4 },
-    itemCategory: { fontSize: 13, color: colors.subText, marginBottom: 4 },
-    skuRow: { flexDirection: 'row', alignItems: 'center' },
-    skuText: { fontSize: 12, marginLeft: 6, flex: 1, color: colors.subText },
-
-    itemPrice: { fontSize: 16, fontWeight: '800', color: colors.text, marginBottom: 4 },
-    itemCost: { fontSize: 13, color: colors.subText },
-
-    cardActionRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', borderTopWidth: 1, borderTopColor: colors.borderColor, paddingTop: 12 },
-    stockBadge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8 },
-    stockBadgeText: { fontSize: 12, fontWeight: '700' },
-    actionBtn: { padding: 8, backgroundColor: colors.inputBg, borderRadius: 10, marginRight: 10 },
-
-    fab: { position: 'absolute', right: 20, bottom: 90, backgroundColor: colors.primary, width: 60, height: 60, borderRadius: 30, justifyContent: 'center', alignItems: 'center', shadowColor: colors.primary, shadowOpacity: 0.4, shadowRadius: 10, elevation: 8, zIndex: 10 },
-
-    modalOverlayCart: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
-    modalContent: { backgroundColor: colors.card, borderTopLeftRadius: 28, borderTopRightRadius: 28, padding: 24, paddingTop: 20 },
-    modalHeaderRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 },
-    modalTitle: { fontSize: 20, fontWeight: '800', color: colors.text },
-
-    imagePickerBtn: { width: 80, height: 80, backgroundColor: colors.inputBg, borderRadius: 16, justifyContent: 'center', alignItems: 'center', borderWidth: 1.5, borderColor: colors.borderColor, borderStyle: 'dashed' },
-    input: { backgroundColor: colors.inputBg, borderWidth: 1, borderColor: colors.borderColor, borderRadius: 14, padding: 14, marginBottom: 15, fontSize: 15, color: colors.text },
-
-    skuInputContainer: { flexDirection: 'row', alignItems: 'center', marginBottom: 0 },
-    skuInputBox: { flex: 1, backgroundColor: colors.inputBg, borderWidth: 1, borderRightWidth: 0, borderColor: colors.borderColor, borderTopLeftRadius: 14, borderBottomLeftRadius: 14, padding: 14, fontSize: 15, color: colors.text },
-    skuScanBtn: { backgroundColor: colors.primary, paddingHorizontal: 14, height: 50, justifyContent: 'center', alignItems: 'center', borderTopRightRadius: 14, borderBottomRightRadius: 14 },
-
-    row: { flexDirection: 'row' },
-    label: { marginBottom: 8, color: colors.subText, fontWeight: '600', fontSize: 13 },
-    pickerContainer: { backgroundColor: colors.inputBg, borderWidth: 1, borderColor: colors.borderColor, borderRadius: 14, marginBottom: 25 },
-
-    modalButtons: { flexDirection: 'row', justifyContent: 'space-between' },
-    btn: { flex: 1, padding: 16, borderRadius: 14, alignItems: 'center' },
-    btnCancel: { backgroundColor: colors.inputBg, marginRight: 8 },
-    btnSave: { backgroundColor: colors.primary, marginLeft: 8 },
-    btnTextGray: { color: colors.subText, fontWeight: 'bold', fontSize: 16 },
-    btnTextWhite: { color: 'white', fontWeight: 'bold', fontSize: 16 },
-
-    addCatRow: { flexDirection: 'row', marginBottom: 20 },
-    addCatBtn: { backgroundColor: colors.primary, width: 52, height: 52, justifyContent: 'center', alignItems: 'center', borderRadius: 14, marginLeft: 10 },
-    catItemRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: colors.borderColor },
-    catItemText: { fontSize: 16, color: colors.text, fontWeight: '600' },
-
+const createStyles = (colors: any, isDark: boolean) =>
+  StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: colors.background,
+    },
+    header: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      paddingHorizontal: SPACING,
+      paddingTop: 8,
+      paddingBottom: 12,
+    },
+    headerTitle: {
+      fontSize: 22,
+      fontFamily: FONTS.bold,
+      color: colors.text,
+    },
+    headerSub: {
+      fontSize: 13,
+      fontFamily: FONTS.regular,
+      color: colors.subText,
+      marginTop: 2,
+    },
+    iconBtn: {
+      width: 44,
+      height: 44,
+      borderRadius: 14,
+      backgroundColor: colors.primaryLight,
+      justifyContent: 'center',
+      alignItems: 'center',
+      borderWidth: 1,
+      borderColor: colors.borderColor,
+    },
+    searchSection: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingHorizontal: SPACING,
+      marginBottom: 12,
+    },
+    searchScanBtn: {
+      width: 48,
+      height: 48,
+      borderRadius: 14,
+      backgroundColor: colors.primary,
+      justifyContent: 'center',
+      alignItems: 'center',
+      marginLeft: 10,
+      ...SHADOWS.soft,
+    },
+    filterChip: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingHorizontal: 14,
+      paddingVertical: 8,
+      borderRadius: 20,
+      backgroundColor: colors.card,
+      marginRight: 8,
+      borderWidth: 1,
+      borderColor: colors.borderColor,
+    },
+    filterChipActive: {
+      backgroundColor: colors.primary,
+      borderColor: colors.primary,
+    },
+    filterText: {
+      fontSize: 13,
+      fontFamily: FONTS.medium,
+      color: colors.subText,
+    },
+    filterTextActive: {
+      color: 'white',
+      fontFamily: FONTS.bold,
+    },
     inlineNewDataContainer: {
+      alignItems: 'center',
+      marginBottom: 8,
+    },
+    newDataPill: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: colors.primary,
+      paddingHorizontal: 14,
+      paddingVertical: 7,
+      borderRadius: 20,
+      ...SHADOWS.soft,
+    },
+    newDataText: {
+      color: 'white',
+      fontSize: 12,
+      fontFamily: FONTS.bold,
+    },
+    itemCard: {
+      backgroundColor: colors.card,
+      borderRadius: 16,
+      padding: 14,
+      marginBottom: 12,
+      borderWidth: 1.5,
+      borderColor: colors.borderColor,
+      ...SHADOWS.soft,
+    },
+    cardMainRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+    },
+    imgContainer: {
+      width: 60,
+      height: 60,
+      borderRadius: 14,
+      overflow: 'hidden',
+      backgroundColor: colors.cardSecondary,
+    },
+    itemImg: {
       width: '100%',
+      height: '100%',
+    },
+    itemImgPlaceholder: {
+      width: '100%',
+      height: '100%',
+      backgroundColor: colors.primaryLight,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    itemImgText: {
+      fontSize: 22,
+      fontFamily: FONTS.bold,
+      color: colors.primary,
+    },
+    itemName: {
+      fontSize: 15,
+      fontFamily: FONTS.semiBold,
+      color: colors.text,
+      marginBottom: 2,
+    },
+    itemCategory: {
+      fontSize: 12,
+      fontFamily: FONTS.medium,
+      color: colors.subText,
+      marginBottom: 4,
+    },
+    skuRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+    },
+    skuText: {
+      fontSize: 11,
+      fontFamily: FONTS.medium,
+      color: colors.subText,
+      marginLeft: 4,
+    },
+    itemPrice: {
+      fontSize: 15,
+      fontFamily: FONTS.bold,
+      color: colors.primary,
+    },
+    itemCost: {
+      fontSize: 11,
+      fontFamily: FONTS.regular,
+      color: colors.subText,
+      marginTop: 2,
+    },
+    cashierLockRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      marginTop: 2,
+    },
+    cashierLockText: {
+      fontSize: 10,
+      fontFamily: FONTS.regular,
+      color: colors.subText,
+      marginLeft: 3,
+      fontStyle: 'italic',
+    },
+    cardActionRow: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      marginTop: 12,
+      paddingTop: 10,
+      borderTopWidth: 1,
+      borderTopColor: colors.borderColor,
+    },
+    stockBadge: {
+      paddingHorizontal: 10,
+      paddingVertical: 4,
+      borderRadius: 8,
+    },
+    stockBadgeText: {
+      fontSize: 12,
+      fontFamily: FONTS.bold,
+    },
+    actionBtn: {
+      width: 34,
+      height: 34,
+      borderRadius: 10,
+      backgroundColor: colors.primaryLight,
+      justifyContent: 'center',
+      alignItems: 'center',
+      marginRight: 8,
+    },
+    fab: {
+      position: 'absolute',
+      right: SPACING,
+      width: 56,
+      height: 56,
+      borderRadius: 28,
+      backgroundColor: colors.primary,
+      justifyContent: 'center',
+      alignItems: 'center',
+      ...SHADOWS.float,
+    },
+    emptyContainer: {
       alignItems: 'center',
       justifyContent: 'center',
-      marginTop: 5,
-      marginBottom: 12,
-      paddingHorizontal: SPACING
+      paddingVertical: 60,
     },
-
-    newDataPill: { flexDirection: 'row', backgroundColor: colors.primary, paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20, alignItems: 'center', shadowColor: '#000', shadowOpacity: 0.2, shadowRadius: 5, elevation: 5 },
-    newDataText: { color: 'white', fontSize: 13, fontWeight: 'bold' },
-
-    bottomSheetContent: { backgroundColor: colors.card, borderTopLeftRadius: 28, borderTopRightRadius: 28, padding: 24, paddingTop: 15 },
-    modalHandle: { width: 40, height: 5, backgroundColor: colors.borderColor, borderRadius: 3, alignSelf: 'center', marginBottom: 20 },
-    filterSectionTitle: { fontSize: 15, fontWeight: '700', color: colors.text, marginTop: 10, marginBottom: 12 },
-    chipRow: { flexDirection: 'row', flexWrap: 'wrap', marginBottom: 15 },
-    bsChip: { paddingHorizontal: 16, paddingVertical: 10, borderRadius: 12, backgroundColor: colors.inputBg, borderWidth: 1, borderColor: colors.borderColor, marginRight: 10, marginBottom: 10 },
-    bsChipActive: { backgroundColor: colors.primaryLight, borderColor: colors.primary },
-    bsChipText: { fontSize: 14, color: colors.text, fontWeight: '500' },
-    bsChipTextActive: { color: colors.primary, fontWeight: '700' },
-    bsFooter: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 15, paddingTop: 15, borderTopWidth: 1, borderTopColor: colors.borderColor },
-    bsBtnReset: { flex: 1, padding: 16, borderRadius: 14, alignItems: 'center', backgroundColor: colors.inputBg, marginRight: 8 },
-    bsBtnResetText: { color: colors.subText, fontWeight: 'bold', fontSize: 16 },
-    bsBtnApply: { flex: 1, padding: 16, borderRadius: 14, alignItems: 'center', backgroundColor: colors.primary, marginLeft: 8 },
-    bsBtnApplyText: { color: 'white', fontWeight: 'bold', fontSize: 16 },
-
-    actionSheetBtn: { paddingVertical: 16, backgroundColor: colors.inputBg, borderRadius: 14, marginBottom: 12, alignItems: 'center' },
-    actionSheetBtnText: { fontSize: 16, fontWeight: '600', color: colors.text },
-    actionSheetCancelBtn: { backgroundColor: isDark ? colors.danger + '20' : '#FFF0F0', marginTop: 8 },
-    actionSheetCancelText: { fontSize: 16, fontWeight: 'bold', color: colors.danger },
+    emptyTitle: {
+      fontSize: 16,
+      fontFamily: FONTS.bold,
+      color: colors.text,
+      marginBottom: 4,
+    },
+    emptySub: {
+      fontSize: 13,
+      fontFamily: FONTS.regular,
+      color: colors.subText,
+      textAlign: 'center',
+    },
+    // CENTER DIALOG STYLING
+    modalCenterOverlay: {
+      flex: 1,
+      backgroundColor: colors.modalOverlay,
+      justifyContent: 'center',
+      alignItems: 'center',
+      paddingHorizontal: 16,
+    },
+    modalCenterCard: {
+      width: '100%',
+      maxWidth: 440,
+      backgroundColor: colors.card,
+      borderRadius: 24,
+      paddingHorizontal: SPACING,
+      paddingVertical: 18,
+      maxHeight: '80%',
+      borderWidth: 1.5,
+      borderColor: colors.borderColor,
+      ...SHADOWS.float,
+    },
+    modalHeaderRow: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      paddingBottom: 14,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.borderColor,
+    },
+    modalTitle: {
+      fontSize: 17,
+      fontFamily: FONTS.bold,
+      color: colors.text,
+      marginLeft: 8,
+    },
+    closeBtn: {
+      padding: 6,
+      borderRadius: 10,
+      backgroundColor: colors.cardSecondary,
+    },
+    filterSectionTitle: {
+      fontSize: 13,
+      fontFamily: FONTS.bold,
+      color: colors.subText,
+      textTransform: 'uppercase',
+      marginTop: 16,
+      marginBottom: 10,
+    },
+    chipGroup: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+    },
+    modalChip: {
+      paddingHorizontal: 14,
+      paddingVertical: 8,
+      borderRadius: 12,
+      backgroundColor: colors.cardSecondary,
+      marginRight: 8,
+      marginBottom: 8,
+      borderWidth: 1,
+      borderColor: colors.borderColor,
+    },
+    modalChipActive: {
+      backgroundColor: colors.primary,
+      borderColor: colors.primary,
+    },
+    modalChipText: {
+      fontSize: 13,
+      fontFamily: FONTS.medium,
+      color: colors.text,
+    },
+    modalChipTextActive: {
+      color: 'white',
+      fontFamily: FONTS.bold,
+    },
+    modalActionRow: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      marginTop: 18,
+      paddingTop: 12,
+      borderTopWidth: 1,
+      borderTopColor: colors.borderColor,
+    },
+    resetBtn: {
+      flex: 1,
+      paddingVertical: 12,
+      borderRadius: 12,
+      backgroundColor: colors.cardSecondary,
+      alignItems: 'center',
+      marginRight: 10,
+    },
+    resetBtnText: {
+      fontSize: 14,
+      fontFamily: FONTS.semiBold,
+      color: colors.text,
+    },
+    applyBtn: {
+      flex: 2,
+      paddingVertical: 12,
+      borderRadius: 12,
+      backgroundColor: colors.primary,
+      alignItems: 'center',
+      ...SHADOWS.soft,
+    },
+    applyBtnText: {
+      fontSize: 14,
+      fontFamily: FONTS.bold,
+      color: 'white',
+    },
+    catInputRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      marginVertical: 14,
+    },
+    catTextInput: {
+      flex: 1,
+      height: 46,
+      backgroundColor: colors.inputBg,
+      borderWidth: 1.5,
+      borderColor: colors.borderColor,
+      borderRadius: 12,
+      paddingHorizontal: 14,
+      fontSize: 14,
+      fontFamily: FONTS.medium,
+      color: colors.text,
+    },
+    saveCatBtn: {
+      width: 46,
+      height: 46,
+      borderRadius: 12,
+      backgroundColor: colors.primary,
+      justifyContent: 'center',
+      alignItems: 'center',
+      marginLeft: 8,
+    },
+    cancelEditCatBtn: {
+      width: 46,
+      height: 46,
+      borderRadius: 12,
+      backgroundColor: colors.cardSecondary,
+      justifyContent: 'center',
+      alignItems: 'center',
+      marginLeft: 8,
+    },
+    catItemRow: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      paddingVertical: 12,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.borderColor,
+    },
+    catItemName: {
+      fontSize: 14,
+      fontFamily: FONTS.semiBold,
+      color: colors.text,
+    },
+    catActionBtn: {
+      width: 32,
+      height: 32,
+      borderRadius: 8,
+      backgroundColor: colors.primaryLight,
+      justifyContent: 'center',
+      alignItems: 'center',
+      marginRight: 8,
+    },
   });
-}

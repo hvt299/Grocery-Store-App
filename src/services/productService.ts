@@ -83,6 +83,7 @@ export const getInvoices = async (page = 1, limit = 20) => {
     const mappedData = response.data.map((item: any) => ({
         ...item,
         total_amount: item.totalAmount,
+        seller_name: item.sellerName || 'Thu ngân',
         created_at: item.createdAt,
         invoice_items: item.items.map((i: any) => ({
             product_name: i.productName,
@@ -98,10 +99,11 @@ export const getInvoices = async (page = 1, limit = 20) => {
     };
 };
 
-export const createInvoice = async (cartItems: any[], totalAmount: number) => {
+export const createInvoice = async (cartItems: any[], totalAmount: number, sellerName?: string) => {
     const payload = {
         totalAmount,
         paymentMethod: 'Cash',
+        sellerName: sellerName || 'Thu ngân',
         items: cartItems.map(item => ({
             productId: item._id,
             productName: item.name,

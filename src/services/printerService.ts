@@ -1,16 +1,22 @@
 import { Alert } from 'react-native';
 
-// BẬT CÔNG TẮC NÀY THÀNH 'TRUE' CHẠY TRÊN MÁY IN THẬT
-const IS_REAL_PRINTER_CONNECTED = false;
+// Cấu hình từ file môi trường .env (EXPO_PUBLIC_*)
+const IS_REAL_PRINTER_CONNECTED = process.env.EXPO_PUBLIC_ENABLE_REAL_PRINTER === 'true';
+const STORE_NAME = process.env.EXPO_PUBLIC_STORE_NAME || 'TẠP HÓA THÔNG MINH A&B';
+const STORE_PHONE = process.env.EXPO_PUBLIC_STORE_PHONE || '0987.654.321';
+const STORE_ADDRESS = process.env.EXPO_PUBLIC_STORE_ADDRESS || '123 Đường Bán Lẻ, TP. Hồ Chí Minh';
 
 export const printReceipt = async (invoiceData: any) => {
     try {
         if (!IS_REAL_PRINTER_CONNECTED) {
             // CHẾ ĐỘ GIẢ LẬP (MOCK MODE)
             console.log("\n==================================");
-            console.log("       HÓA ĐƠN TẠP HÓA A&B        ");
+            console.log(`       ${STORE_NAME.toUpperCase()}       `);
+            console.log(`Đ/C: ${STORE_ADDRESS}`);
+            console.log(`SĐT: ${STORE_PHONE}`);
             console.log("==================================");
             console.log(`Mã HĐ: ${invoiceData.invoiceId}`);
+            console.log(`Người bán: ${invoiceData.sellerName || 'Thu ngân'}`);
             console.log(`Thời gian: ${new Date().toLocaleString()}`);
             console.log("----------------------------------");
             invoiceData.items.forEach((item: any) => {

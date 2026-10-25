@@ -2,7 +2,7 @@
 
   <img src="./assets/logo-app.png" width="110" height="110" alt="Grocery POS App Logo" style="border-radius: 24px; margin-bottom: 12px;" />
 
-  <h1>🛒 Grocery Store POS - Smart Retail & Cashier Mobile App</h1>
+  <h1>Grocery Store POS - Smart Retail & Cashier Mobile App</h1>
   <h3>Hệ thống Bán Hàng & Quản Lý Tạp Hóa Thông Minh Chuẩn POS Chuyên Nghiệp</h3>
 
   <p>
@@ -12,13 +12,12 @@
   </p>
 
   <p>
-    <img src="https://img.shields.io/badge/Expo-v54.0.30-000000?logo=expo" alt="Expo">
+    <img src="https://img.shields.io/badge/Expo-v54.0.38-000000?logo=expo" alt="Expo">
     <img src="https://img.shields.io/badge/React_Native-0.81.5-61dafb?logo=react" alt="React Native">
     <img src="https://img.shields.io/badge/React-19.1.0-blue?logo=react" alt="React 19">
     <img src="https://img.shields.io/badge/TypeScript-5.9.2-3178c6?logo=typescript" alt="TypeScript">
-    <img src="https://img.shields.io/badge/React_Navigation-v6.6-6b52ae" alt="React Navigation">
-    <img src="https://img.shields.io/badge/Socket.io-4.8.3-010101?logo=socketdotio" alt="Socket.io">
-    <img src="https://img.shields.io/badge/License-UNLICENSED-red" alt="License">
+    <img src="https://img.shields.io/badge/Axios-1.20.0-5A29E4?logo=axios&logoColor=white" alt="Axios">
+    <img src="https://img.shields.io/badge/Socket.io-4.8.4-010101?logo=socketdotio" alt="Socket.io">
     <img src="https://img.shields.io/badge/Status-Active_Development-success" alt="Status">
   </p>
 
@@ -26,35 +25,44 @@
 
 <br />
 
----
+# MOBILE APPLICATION & SMART POS COMPANION
 
-## 📑 Mục lục
+Đây là kho lưu trữ chứa mã nguồn **Mobile Application** của hệ thống **Grocery Store POS**. Ứng dụng được xây dựng trên nền tảng **React Native 0.81.5** và **Expo SDK 54**, đáp ứng chuẩn mực thiết kế ứng dụng POS bán lẻ di động hiện đại, hỗ trợ đa nền tảng Android và iOS, mang đến giải pháp công nghệ toàn diện cho công tác thanh toán tại quầy và quản lý hàng tồn kho.
 
-- [📱 Giới thiệu Ứng dụng](#-giới-thiệu-ứng-dụng)
-- [🛠️ Công nghệ & Thư viện Cốt lõi](#️-công-nghệ--thư-viện-cốt-lõi)
-- [🌟 Tính năng Nổi bật theo Màn hình](#-tính-năng-nổi-bật-theo-màn-hình)
-  - [1. Màn hình Bán hàng tại Quầy (`PosScreen`)](#1-màn-hình-bán-hàng-tại-quầy-poscreen)
-  - [2. Màn hình Quản lý Kho hàng & Tồn kho (`InventoryScreen`)](#2-màn-hình-quản-lý-kho-hàng--tồn-kho-inventoryscreen)
-  - [3. Màn hình Thêm & Chỉnh sửa Sản phẩm (`AddEditProductScreen`)](#3-màn-hình-thêm--chỉnh-sửa-sản-phẩm-addeditproductscreen)
-  - [4. Màn hình Quét Mã vạch Toàn cục (`GlobalScannerScreen`)](#4-màn-hình-quét-mã-vạch-toàn-cục-globalscannerscreen)
-  - [5. Màn hình Lịch sử Hóa đơn Bán hàng (`InvoiceScreen`)](#5-màn-hình-lịch-sử-hóa-đơn-bán-hàng-invoicescreen)
-  - [6. Màn hình Báo cáo Doanh thu & Thống kê (`AnalyticsScreen`)](#6-màn-hình-báo-cáo-doanh-thu--thống-kê-analyticsscreen)
-  - [7. Màn hình Cài đặt Máy in Hóa đơn ESC/POS (`PrinterSettingsScreen`)](#7-màn-hình-cài-đặt-máy-in-hóa-đơn-escpos-printersettingsscreen)
-  - [8. Màn hình Đăng nhập Vào ca (`LoginScreen`)](#8-màn-hình-đăng-nhập-vào-ca-loginscreen)
-  - [9. Màn hình Cài đặt & Tiện ích (`SettingsScreen` & `MoreScreen`)](#9-màn-hình-cài-đặt--tiện-ích-settingsscreen--morescreen)
-- [📸 Demo Giao diện Ứng dụng](#-demo-giao-diện-ứng-dụng)
-- [🛡️ Phân quyền Vai trò Bảo mật (Admin vs Cashier)](#️-phân-quyền-vai-trò-bảo-mật-admin-vs-cashier)
-- [⚡ Tối ưu Hiệu năng & Chống Tràn Bộ nhớ (OOM Crash Prevention)](#-tối-ưu-hiệu-năng--chống-tràn-bộ-nhớ-oom-crash-prevention)
-- [🖨️ Động cơ In Hóa đơn Nhiệt ESC/POS (Bluetooth & Wifi LAN)](#️-động-cơ-in-hóa-đơn-nhiệt-escpos-bluetooth--wifi-lan)
-- [🌐 Cơ chế Đồng bộ Realtime & Offline Cache](#-cơ-chế-đồng-bộ-realtime--offline-cache)
-- [⚙️ Cấu hình Biến Môi trường (.env)](#️-cấu-hình-biến-môi-trường-env)
-- [📂 Cấu trúc Thư mục Dự án](#-cấu-trúc-thư-mục-dự-án)
-- [🚀 Hướng dẫn Cài đặt & Khởi chạy](#-hướng-dẫn-cài-đặt--khởi-chạy)
-- [👨‍💻 Tác giả & Giấy phép](#-tác-giả--giấy-phép)
+Ứng dụng đã được rà soát và nâng cấp thư viện mạng **Axios** lên phiên bản an toàn `^1.20.0` cùng hệ thống thư viện lõi nhằm ngăn chặn các nguy cơ tấn công SSRF, Prototype Pollution và lỗ hổng DoS trong quá trình xử lý dữ liệu mạng.
 
 ---
 
-## 📱 Giới thiệu Ứng dụng
+## Mục lục
+
+- [1. Giới thiệu Ứng dụng](#1-giới-thiệu-ứng-dụng)
+- [2. Công nghệ & Thư viện Cốt lõi](#2-công-nghệ--thư-viện-cốt-lõi)
+  - [Nền tảng Di động Cốt lõi](#nền-tảng-di-động-cốt-lõi)
+  - [Giao diện Người dùng, Biểu tượng & Hoạt họa](#giao-diện-người-dùng-biểu-tượng--hoạt-họa)
+  - [Mạng, Realtime & Thiết bị Ngoại vi](#mạng-realtime--thiết-bị-ngoại-vi)
+- [3. Tính năng Nổi bật theo Màn hình](#3-tính-năng-nổi-bật-theo-màn-hình)
+  - [3.1. Màn hình Bán hàng tại Quầy (PosScreen)](#31-màn-hình-bán-hàng-tại-quầy-poscreen)
+  - [3.2. Màn hình Quản lý Kho hàng & Tồn kho (InventoryScreen)](#32-màn-hình-quản-lý-kho-hàng--tồn-kho-inventoryscreen)
+  - [3.3. Màn hình Thêm & Chỉnh sửa Sản phẩm (AddEditProductScreen)](#33-màn-hình-thêm--chỉnh-sửa-sản-phẩm-addeditproductscreen)
+  - [3.4. Màn hình Quét Mã vạch Toàn cục (GlobalScannerScreen)](#34-màn-hình-quét-mã-vạch-toàn-cục-globalscannerscreen)
+  - [3.5. Màn hình Lịch sử Hóa đơn Bán hàng (InvoiceScreen)](#35-màn-hình-lịch-sử-hóa-đơn-bán-hàng-invoicescreen)
+  - [3.6. Màn hình Báo cáo Doanh thu & Thống kê (AnalyticsScreen)](#36-màn-hình-báo-cáo-doanh-thu--thống-kê-analyticsscreen)
+  - [3.7. Màn hình Cài đặt Máy in Hóa đơn ESC/POS (PrinterSettingsScreen)](#37-màn-hình-cài-đặt-máy-in-hóa-đơn-escpos-printersettingsscreen)
+  - [3.8. Màn hình Đăng nhập Vào ca (LoginScreen)](#38-màn-hình-đăng-nhập-vào-ca-loginscreen)
+  - [3.9. Màn hình Cài đặt & Tiện ích (SettingsScreen & MoreScreen)](#39-màn-hình-cài-đặt--tiện-ích-settingsscreen--morescreen)
+- [4. Demo Giao diện Ứng dụng](#4-demo-giao-diện-ứng-dụng)
+- [5. Phân quyền Vai trò Bảo mật (Admin vs Cashier)](#5-phân-quyền-vai-trò-bảo-mật-admin-vs-cashier)
+- [6. Tối ưu Hiệu năng & Chống Tràn Bộ nhớ (OOM Crash Prevention)](#6-tối-ưu-hiệu-năng--chống-tràn-bộ-nhớ-oom-crash-prevention)
+- [7. Động cơ In Hóa đơn Nhiệt ESC/POS (Bluetooth & Wifi LAN)](#7-động-cơ-in-hóa-đơn-nhiệt-escpos-bluetooth--wifi-lan)
+- [8. Cơ chế Đồng bộ Realtime & Offline Cache](#8-cơ-chế-đồng-bộ-realtime--offline-cache)
+- [9. Cấu hình Biến Môi trường (.env)](#9-cấu-hình-biến-môi-trường-env)
+- [10. Cấu trúc Thư mục Dự án](#10-cấu-trúc-thư-mục-dự-án)
+- [11. Hướng dẫn Cài đặt & Khởi chạy](#11-hướng-dẫn-cài-đặt--khởi-chạy)
+- [12. Tác giả](#12-tác-giả)
+
+---
+
+## 1. Giới thiệu Ứng dụng
 
 **Grocery Store POS** là giải pháp ứng dụng di động đa nền tảng (Android & iOS) được thiết kế đặc thù cho mô hình bán lẻ, cửa hàng tạp hóa, siêu thị mini và đại lý phân phối tại Việt Nam.
 
@@ -62,19 +70,19 @@
 1. **Thanh toán nhanh chóng không tắc nghẽn:** Thao tác chọn món, quét mã vạch và thanh toán diễn ra chỉ trong vài giây; gợi ý tiền mặt và tính tiền thối lại cho khách chính xác 100%.
 2. **Minh bạch thu ngân & bảo mật tài chính:** Ghi nhận chính xác danh tính nhân viên lập hóa đơn (`sellerName`), che giấu hoàn toàn giá vốn nhập hàng và báo cáo lợi nhuận đối với nhân viên thu ngân thông thường.
 3. **In hóa đơn nhiệt chuyên nghiệp:** Tương thích mọi dòng máy in nhiệt khổ K58 và K80 qua giao thức Bluetooth không dây hoặc mạng Wifi/LAN nội bộ, in hóa đơn sắc nét kèm tên thu ngân và thông tin cửa hàng.
-4. **Trải nghiệm hiện đại & thân thiện:** Thiết kế giao diện phẳng chuẩn font **Be Vietnam Pro**, biểu tượng vector SVG Lucide nhất quán (nói không với chat emoji), hỗ trợ đầy đủ Dark Mode / Light Mode và chuyển cảnh mượt mà 60fps.
+4. **Trải nghiệm hiện đại & thân thiện:** Thiết kế giao diện phẳng chuẩn font **Be Vietnam Pro**, biểu tượng vector SVG Lucide nhất quán (thay thế hoàn toàn chat emoji), hỗ trợ đầy đủ Dark Mode / Light Mode và chuyển cảnh mượt mà 60fps.
 
 ---
 
-## 🛠️ Công nghệ & Thư viện Cốt lõi
+## 2. Công nghệ & Thư viện Cốt lõi
 
 Ứng dụng được xây dựng trên nền tảng **React Native 0.81.5** và **Expo SDK 54**:
 
-### 🏗️ Core Mobile Stack
+### Nền tảng Di động Cốt lõi
 
-| Công nghệ | Phiên bản | Vai trò |
+| Công nghệ | Phiên bản | Vai trò Kỹ thuật |
 | :--- | :--- | :--- |
-| **[Expo SDK](https://expo.dev/)** | `~54.0.30` | Nền tảng phát triển ứng dụng di động native, quản lý vòng đời và build tự động |
+| **[Expo SDK](https://expo.dev/)** | `~54.0.38` | Nền tảng phát triển ứng dụng di động native, quản lý vòng đời và build tự động |
 | **[React Native](https://reactnative.dev/)** | `0.81.5` | Framework phát triển ứng dụng di động đa nền tảng hiệu năng cao |
 | **[React](https://react.dev/)** | `19.1.0` | Thư viện giao diện React 19 với khả năng tối ưu hóa render và Hooks mạnh mẽ |
 | **[TypeScript](https://www.typescriptlang.org/)** | `~5.9.2` | Ngôn ngữ tĩnh hóa mã nguồn, bảo đảm an toàn kiểu dữ liệu 100% |
@@ -82,9 +90,9 @@
 
 ---
 
-### 🎨 Design System, Typography & UI Components
+### Giao diện Người dùng, Biểu tượng & Hoạt họa
 
-| Công nghệ | Phiên bản | Vai trò |
+| Công nghệ | Phiên bản | Vai trò Kỹ thuật |
 | :--- | :--- | :--- |
 | **[Be Vietnam Pro](https://fonts.google.com/specimen/Be+Vietnam+Pro)** | `^0.4.1` | Bộ font chữ chuẩn hiển thị tiếng Việt hiện đại (Regular, Medium, SemiBold, Bold, ExtraBold) |
 | **[Lucide React Native](https://lucide.dev/)** | `^1.17.0` | Hệ thống biểu tượng vector SVG chuyên nghiệp, đồng bộ (thay thế hoàn toàn chat emoji) |
@@ -95,12 +103,12 @@
 
 ---
 
-### 🌐 Networking, Realtime & Peripherals
+### Mạng, Realtime & Thiết bị Ngoại vi
 
-| Công nghệ | Phiên bản | Vai trò |
+| Công nghệ | Phiên bản | Vai trò Kỹ thuật |
 | :--- | :--- | :--- |
-| **[Axios](https://axios-http.com/)** | `^1.16.1` | Giao tiếp REST API với Backend NestJS (Interceptors tự động đính kèm JWT Bearer) |
-| **[Socket.io Client](https://socket.io/)** | `^4.8.3` | Lắng nghe sự kiện WebSockets thời gian thực (`product_changed`, `category_changed`, `invoice_created`) |
+| **[Axios](https://axios-http.com/)** | `^1.20.0` | Giao tiếp REST API an toàn với Backend NestJS (Interceptors tự động đính kèm JWT Bearer) |
+| **[Socket.io Client](https://socket.io/)** | `^4.8.4` | Lắng nghe sự kiện WebSockets thời gian thực (`product_changed`, `category_changed`, `invoice_created`) |
 | **[Expo Camera](https://docs.expo.dev/versions/latest/sdk/camera/)** | `~17.0.10` | Quét mã vạch Barcode (EAN-13, Code 128) và mã QR siêu tốc |
 | **[Expo Image Picker](https://docs.expo.dev/versions/latest/sdk/imagepicker/)** | `~17.0.11` | Chụp ảnh sản phẩm từ camera hoặc chọn từ album máy để upload lên Cloudinary |
 | **AsyncStorage** | `^2.2.0` | Lưu trữ cục bộ JWT token, thông tin phiên thu ngân và cấu hình máy in |
@@ -108,12 +116,12 @@
 
 ---
 
-## 🌟 Tính năng Nổi bật theo Màn hình
+## 3. Tính năng Nổi bật theo Màn hình
 
-### 1. Màn hình Bán hàng tại Quầy (`PosScreen`)
+### 3.1. Màn hình Bán hàng tại Quầy (PosScreen)
 * **Lưới Sản phẩm 2 Cột Tối ưu Hóa:** 
   - Render ảnh downsampling với `expo-image` kết hợp danh sách ảo hóa `FlatList` (`windowSize={3}`, `initialNumToRender={6}`), loại bỏ hoàn toàn hiện tượng văng ứng dụng khi danh mục chứa hàng trăm sản phẩm.
-  - Phù hiệu huy hiệu chào ca làm việc thông minh (`Xin chào, Admin!` / `Xin chào, Thu ngân!` kèm icon `UserCheck`).
+  - Phù hiệu chào ca làm việc thông minh (`Xin chào, Admin!` / `Xin chào, Thu ngân!` kèm icon `UserCheck`).
 * **Băng Chuyền Danh mục (Category Ribbon):** Bộ lọc ngành hàng vuốt ngang mượt mà, phân loại tức thì sản phẩm theo từng nhóm hàng hóa.
 * **Thanh Giỏ Hàng Nổi (Floating Cart Bar):**
   - Hiển thị tổng số lượng món và tổng tiền với hiệu ứng rung nảy Micro-interaction (`Animated.spring`).
@@ -127,7 +135,7 @@
 
 ---
 
-### 2. Màn hình Quản lý Kho hàng & Tồn kho (`InventoryScreen`)
+### 3.2. Màn hình Quản lý Kho hàng & Tồn kho (InventoryScreen)
 * **Giám sát Tồn kho Toàn diện:** Danh sách mặt hàng kèm trạng thái tồn kho trực quan (Còn hàng, Sắp hết hàng `< 5`, Hết hàng).
 * **Tìm kiếm & Phân trang Thông minh:** Tìm kiếm nhanh theo tên sản phẩm hoặc mã vạch SKU với cơ chế Debounce 350ms tiết kiệm tài nguyên.
 * **Bảo Mật Giá Vốn Nhập:** Chỉ tài khoản **Admin** mới nhìn thấy thông tin giá vốn nhập hàng (`costPrice`); nhân viên **Thu ngân** bị ẩn hoàn toàn trường dữ liệu này nhằm bảo vệ thông tin tài chính nhạy cảm của cửa hàng.
@@ -135,7 +143,7 @@
 
 ---
 
-### 3. Màn hình Thêm & Chỉnh sửa Sản phẩm (`AddEditProductScreen`)
+### 3.3. Màn hình Thêm & Chỉnh sửa Sản phẩm (AddEditProductScreen)
 * **Chụp & Tải Ảnh Đám Mây Cloudinary:** Chụp ảnh bao bì sản phẩm trực tiếp từ camera hoặc tải ảnh từ thư viện, sử dụng chữ ký số bảo mật từ Backend để upload trực tiếp lên CDN.
 * **Chuẩn hóa Giao diện Nhập liệu:** Đồng bộ 100% kích thước ô nhập (chiều cao chuẩn 48px), màu chữ `colors.text` và màu placeholder `colors.mutedText` dịu mắt theo chuẩn ô Tên sản phẩm.
 * **Danh mục Toàn màn hình:** Dropdown chọn ngành hàng hiển thị trọn vẹn 100% chiều rộng, hỗ trợ chế độ `mode="dropdown"` không bị che khuất nội dung.
@@ -143,7 +151,7 @@
 
 ---
 
-### 4. Màn hình Quét Mã vạch Toàn cục (`GlobalScannerScreen`)
+### 3.4. Màn hình Quét Mã vạch Toàn cục (GlobalScannerScreen)
 * **Động cơ Camera Siêu tốc:** Quét tự động đa chuẩn mã vạch (EAN-13, EAN-8, Code 128, Code 39, QR Code).
 * **Đa chế độ Hoạt động (Multi-action):**
   - **Chế độ Bán hàng (`addToCart`):** Quét mã sản phẩm tại quầy thu ngân -> Tự động tìm sản phẩm và thêm thẳng vào giỏ hàng kèm âm báo.
@@ -152,7 +160,7 @@
 
 ---
 
-### 5. Màn hình Lịch sử Hóa đơn Bán hàng (`InvoiceScreen`)
+### 3.5. Màn hình Lịch sử Hóa đơn Bán hàng (InvoiceScreen)
 * **Minh Bạch Thu Ngân Bán Hàng:** Mỗi hóa đơn đều hiển thị rõ ràng thông tin người tạo đơn (`Thu ngân: Nguyễn Văn A` / `Admin`) được trích xuất từ JWT phiên đăng nhập thực tế.
 * **Chi Tiết Giao Dịch:** Xem lại danh sách mặt hàng, đơn giá, số lượng, phương thức thanh toán, tiền khách đưa và tiền thối.
 * **In Lại Hóa Đơn (Reprint):** Hỗ trợ xuất lệnh in lại hóa đơn cho khách bất cứ lúc nào qua máy in nhiệt đã kết nối.
@@ -160,7 +168,7 @@
 
 ---
 
-### 6. Màn hình Báo cáo Doanh thu & Thống kê (`AnalyticsScreen`)
+### 3.6. Màn hình Báo cáo Doanh thu & Thống kê (AnalyticsScreen)
 * **Đặc Quyền Dành Riêng cho Admin:** Chỉ tài khoản có vai trò Quản lý mới có quyền truy cập màn hình này; hệ thống tự động chặn và thông báo nếu Thu ngân cố tình truy cập.
 * **Chỉ Số Tài Chính Cốt Lõi:**
   - Tổng doanh thu hôm nay, tuần này và tháng này.
@@ -171,7 +179,7 @@
 
 ---
 
-### 7. Màn hình Cài đặt Máy in Hóa đơn ESC/POS (`PrinterSettingsScreen`)
+### 3.7. Màn hình Cài đặt Máy in Hóa đơn ESC/POS (PrinterSettingsScreen)
 * **Hỗ Trợ Đa Phương Thức Kết Nối:**
   - **Mạng Wifi / LAN nội bộ:** Kết nối trực tiếp máy in hóa đơn qua địa chỉ IP (ví dụ: `192.168.1.200`) và cổng mặc định `9100`.
   - **Bluetooth Không dây:** Tương thích các dòng máy in nhiệt cầm tay mini (POS-5802, PT-210...).
@@ -180,7 +188,7 @@
 
 ---
 
-### 8. Màn hình Đăng nhập Vào ca (`LoginScreen`)
+### 3.8. Màn hình Đăng nhập Vào ca (LoginScreen)
 * **Trải Nghiệm Nhập Liệu Tối Ưu:**
   - Khắc phục triệt để lỗi tự đóng bàn phím khi ấn "Next" (`blurOnSubmit={false}`), chuyển con trỏ mượt mà từ tên tài khoản sang mật khẩu.
   - Phím Enter/Go tại ô mật khẩu tự động thực hiện đăng nhập vào ca ngay tức thì.
@@ -189,7 +197,7 @@
 
 ---
 
-### 9. Màn hình Cài đặt & Tiện ích (`SettingsScreen` & `MoreScreen`)
+### 3.9. Màn hình Cài đặt & Tiện ích (SettingsScreen & MoreScreen)
 * **Quản Lý Chủ Đề Giao Diện (Theme Engine):**
   - **Chế độ Sáng (Light Mode):** Tươi sáng, thanh lịch, độ tương phản cao phù hợp môi trường quầy thu ngân ban ngày.
   - **Chế độ Tối (Dark Mode):** Nền than đen dịu mắt, tiết kiệm pin cho thiết bị di động trong ca tối.
@@ -197,7 +205,7 @@
 
 ---
 
-## 📸 Demo Giao diện Ứng dụng
+## 4. Demo Giao diện Ứng dụng
 
 > *Ghi chú: Toàn bộ ảnh chụp màn hình thực tế được đặt tại thư mục `assets/screenshots/`.*
 
@@ -238,23 +246,23 @@
 
 ---
 
-## 🛡️ Phân quyền Vai trò Bảo mật (Admin vs Cashier)
+## 5. Phân quyền Vai trò Bảo mật (Admin vs Cashier)
 
 Hệ thống thiết lập ma trận phân quyền nghiêm ngặt nhằm bảo vệ tối đa dữ liệu tài chính của chủ tiệm:
 
 | Chức năng / Dữ liệu | Quản lý (Admin) | Thu ngân (Cashier) | Ghi chú bảo mật |
 | :--- | :---: | :---: | :--- |
-| **Bán hàng & Xuất hóa đơn** | ✅ Toàn quyền | ✅ Toàn quyền | Hóa đơn tự động gắn tên người lập đơn thực tế |
-| **Sửa giá sản phẩm tại quầy** | ✅ Cho phép | ❌ Bị khóa | Thu ngân hiển thị biểu tượng khóa `Lock` |
-| **Xem giá vốn nhập hàng** | ✅ Hiển thị | ❌ Ẩn hoàn toàn | Giữ bí mật lợi nhuận nguồn hàng |
-| **Thêm / Chỉnh sửa sản phẩm** | ✅ Cho phép | ❌ Bị giới hạn | Hạn chế chỉnh sửa thông tin kho |
-| **Xóa sản phẩm / Hóa đơn** | ✅ Cho phép | ❌ Cấm hoàn toàn | Chống thất thoát và gian lận dữ liệu |
-| **Báo cáo doanh thu & Lợi nhuận** | ✅ Xem chi tiết | ❌ Chặn truy cập | Chỉ chủ cửa hàng mới được xem tài chính |
-| **Cài đặt kết nối máy in** | ✅ Cho phép | ✅ Cho phép | Cả hai có thể cấu hình máy in tại quầy |
+| **Bán hàng & Xuất hóa đơn** | Cho phép | Cho phép | Hóa đơn tự động gắn tên người lập đơn thực tế |
+| **Sửa giá sản phẩm tại quầy** | Cho phép | Bị khóa | Thu ngân hiển thị biểu tượng khóa `Lock` |
+| **Xem giá vốn nhập hàng** | Hiển thị | Ẩn hoàn toàn | Giữ bí mật lợi nhuận nguồn hàng |
+| **Thêm / Chỉnh sửa sản phẩm** | Cho phép | Bị giới hạn | Hạn chế chỉnh sửa thông tin kho |
+| **Xóa sản phẩm / Hóa đơn** | Cho phép | Cấm hoàn toàn | Chống thất thoát và gian lận dữ liệu |
+| **Báo cáo doanh thu & Lợi nhuận** | Xem chi tiết | Chặn truy cập | Chỉ chủ cửa hàng mới được xem tài chính |
+| **Cài đặt kết nối máy in** | Cho phép | Cho phép | Cả hai có thể cấu hình máy in tại quầy |
 
 ---
 
-## ⚡ Tối ưu Hiệu năng & Chống Tràn Bộ nhớ (OOM Crash Prevention)
+## 6. Tối ưu Hiệu năng & Chống Tràn Bộ nhớ (OOM Crash Prevention)
 
 Ứng dụng được áp dụng các kỹ thuật kiến trúc mobile tối tân nhằm đảm bảo vận hành ổn định trên các dòng điện thoại cấu hình tầm trung:
 
@@ -264,7 +272,7 @@ Hệ thống thiết lập ma trận phân quyền nghiêm ngặt nhằm bảo v
 
 ---
 
-## 🖨️ Động cơ In Hóa đơn Nhiệt ESC/POS (Bluetooth & Wifi LAN)
+## 7. Động cơ In Hóa đơn Nhiệt ESC/POS (Bluetooth & Wifi LAN)
 
 Hệ thống xây dựng module in hóa đơn độc lập [`printerService.ts`](src/services/printerService.ts) hỗ trợ giao thức ESC/POS tiêu chuẩn:
 
@@ -280,9 +288,9 @@ Hệ thống xây dựng module in hóa đơn độc lập [`printerService.ts`]
 
 ---
 
-## 🌐 Cơ chế Đồng bộ Realtime & Offline Cache
+## 8. Cơ chế Đồng bộ Realtime & Offline Cache
 
-```
+```text
 [ Máy POS Thu Ngân A ]                   [ Backend NestJS ]                  [ Máy POS Quản Lý B ]
          │                                       │                                     │
          ├─── Tạo đơn hàng mới ─────────────────>│                                     │
@@ -300,7 +308,7 @@ Hệ thống xây dựng module in hóa đơn độc lập [`printerService.ts`]
 
 ---
 
-## ⚙️ Cấu hình Biến Môi trường (.env)
+## 9. Cấu hình Biến Môi trường (.env)
 
 Tạo file `.env` tại thư mục gốc của dự án `Grocery-Store-App/`:
 
@@ -325,11 +333,11 @@ EXPO_PUBLIC_DEFAULT_PRINTER_PAPER_SIZE=58mm
 EXPO_PUBLIC_ENABLE_REAL_PRINTER=false
 ```
 
-> **Mẹo:** Để lấy địa chỉ IP mạng nội bộ của máy tính chạy server backend, mở terminal gõ `ipconfig` (trên Windows) hoặc `ifconfig` (trên macOS/Linux) và tìm dòng `IPv4 Address`.
+> **Ghi chú:** Để lấy địa chỉ IP mạng nội bộ của máy tính chạy server backend, mở terminal gõ `ipconfig` (trên Windows) hoặc `ifconfig` (trên macOS/Linux) và tìm dòng `IPv4 Address`.
 
 ---
 
-## 📂 Cấu trúc Thư mục Dự án
+## 10. Cấu trúc Thư mục Dự án
 
 ```text
 Grocery-Store-App/
@@ -378,17 +386,16 @@ Grocery-Store-App/
 
 ---
 
-## 🚀 Hướng dẫn Cài đặt & Khởi chạy
+## 11. Hướng dẫn Cài đặt & Khởi chạy
 
-### 1️⃣ Yêu cầu Hệ thống (Prerequisites)
-
+### Yêu cầu Hệ thống
 * **Node.js:** `>= 18.18.0` (Khuyến nghị **Node.js 20.x** hoặc **22.x LTS**)
 * **Trình quản lý gói:** `npm` (>= 9), `yarn`, `pnpm` hoặc `bun`
 * **Công cụ chạy thử:**
   - Cài ứng dụng **Expo Go** trên điện thoại thật (Android / iOS).
   - Hoặc sử dụng máy ảo **Android Studio Emulator** / **Xcode Simulator**.
 
-### 2️⃣ Cài đặt Dependencies
+### Cài đặt Dependencies
 
 ```bash
 # Di chuyển vào thư mục ứng dụng
@@ -398,7 +405,7 @@ cd Grocery-Store-App
 npm install
 ```
 
-### 3️⃣ Cấu hình Biến Môi trường
+### Cấu hình Biến Môi trường
 
 Tạo file `.env` tại thư mục `Grocery-Store-App/`:
 
@@ -407,7 +414,7 @@ Tạo file `.env` tại thư mục `Grocery-Store-App/`:
 EXPO_PUBLIC_API_URL=http://<IP_MAY_TINH_CHAY_BACKEND>:3001
 ```
 
-### 4️⃣ Các Lệnh Thực thi (Scripts)
+### Các Lệnh Thực thi
 
 ```bash
 # Khởi chạy Metro Bundler môi trường phát triển
@@ -427,10 +434,7 @@ Khi chạy `npm run start`, mở camera quét mã QR hiển thị trên Terminal
 
 ---
 
-## 👨‍💻 Tác giả & Giấy phép
+## 12. Tác giả
 
-Được phát triển và duy trì bởi **Mr.T (hvt299)**  
-- **GitHub:** [https://github.com/hvt299](https://github.com/hvt299)
-- **Dự án:** [https://github.com/hvt299/Grocery-Store](https://github.com/hvt299/Grocery-Store)
-
-*Dự án được xây dựng phục vụ giải pháp quản lý bán lẻ hiện đại và nghiên cứu ứng dụng công nghệ React Native / NestJS trong thực tế.*
+Được phát triển bởi **Mr.T (hvt299)**  
+GitHub: [https://github.com/hvt299](https://github.com/hvt299)
